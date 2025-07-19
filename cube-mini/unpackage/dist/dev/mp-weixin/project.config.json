@@ -19,30 +19,16 @@
     }
   },
   "compileType": "miniprogram",
-  "libVersion": "3.8.9",
-  "appid": "wx7ab54a2f9a5bd7f3",
+  "libVersion": "",
+  "appid": "wxdab374167aaa8648",
   "projectname": "U3W-AI",
   "condition": {
-    "search": {
-      "current": -1,
-      "list": []
-    },
-    "conversation": {
-      "current": -1,
-      "list": []
-    },
-    "game": {
-      "current": -1,
-      "list": []
-    },
     "miniprogram": {
-      "current": 0,
       "list": [
         {
           "name": "首页",
-          "query": "",
-          "id": 0,
-          "pathName": "pages/index"
+          "pathName": "pages/index",
+          "query": ""
         }
       ]
     }

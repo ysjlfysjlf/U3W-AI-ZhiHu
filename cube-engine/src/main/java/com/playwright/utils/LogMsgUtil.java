@@ -35,11 +35,13 @@ public class LogMsgUtil {
 
     /**
      * 发送图片数据消息
-     * @param page Playwright页面对象
+     *
+     * @param page      Playwright页面对象
      * @param imageName 图片名称（自动添加.png后缀）
-     * @param userId 用户ID
+     * @param userId    用户ID
+     * @return
      */
-    public void sendImgData(Page page, String imageName, String userId){
+    public String sendImgData(Page page, String imageName, String userId){
         // 截图并上传到指定存储服务
         String url = screenshotUtil.screenshotAndUpload(page,imageName+".png");
 
@@ -48,6 +50,7 @@ public class LogMsgUtil {
         imgData.put("userId",userId);
         imgData.put("type","RETURN_PC_TASK_IMG");
         webSocketClientService.sendMessage(imgData.toJSONString());
+        return url;
     }
 
 

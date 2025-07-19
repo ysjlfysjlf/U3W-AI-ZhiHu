@@ -47,6 +47,27 @@ public class AppLoginServiceImpl implements AppLoginService {
         //获取头像
         String avatarUrl = wxLoginBody.getAvatar();
 //        String avatarUrl ="";
+        
+        // 优先查找userId=344的用户（PC端用户）
+        SysUser pcUser = userMapper.selectUserById(344L);
+        if (pcUser != null) {
+            // 如果找到PC端用户，直接使用该用户
+            pcUser.setOpenId(openId);
+            pcUser.setUnionId(unionId);
+            pcUser.setUpdateTime(DateUtils.getNowDate());
+            userMapper.updateUser(pcUser);
+            
+            //组装token信息
+            LoginUser loginUser = new LoginUser();
+            loginUser.setOpenId(openId);
+            loginUser.setUser(pcUser);
+            loginUser.setUserId(pcUser.getUserId());
+            
+            // 生成token
+            return tokenService.createToken(loginUser);
+        }
+        
+        // 如果找不到PC端用户，按原有逻辑处理
         //根据openid查询用户信息
         SysUser wxUser = userMapper.selectWxUserByOpenId(openId,unionId);
 //
@@ -101,6 +122,28 @@ public class AppLoginServiceImpl implements AppLoginService {
          nickName =nickName + getStringRandom(7);// 生成16位随机昵称
         //获取头像
         String avatarUrl ="";
+        
+        // 优先查找userId=344的用户（PC端用户）
+        SysUser pcUser = userMapper.selectUserById(344L);
+        if (pcUser != null) {
+            // 如果找到PC端用户，直接使用该用户
+            pcUser.setOpenId(openId);
+            pcUser.setUnionId(unionId);
+            pcUser.setQwId(qwId);
+            pcUser.setUpdateTime(DateUtils.getNowDate());
+            userMapper.updateUser(pcUser);
+            
+            //组装token信息
+            LoginUser loginUser = new LoginUser();
+            loginUser.setOpenId(openId);
+            loginUser.setUser(pcUser);
+            loginUser.setUserId(pcUser.getUserId());
+            
+            // 生成token
+            return tokenService.createToken(loginUser);
+        }
+        
+        // 如果找不到PC端用户，按原有逻辑处理
         //根据openid查询用户信息
         SysUser wxUser = userMapper.selectWxUserByOpenId(openId,unionId);
 //

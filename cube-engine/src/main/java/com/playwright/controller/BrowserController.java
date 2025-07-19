@@ -4,12 +4,15 @@ import com.alibaba.fastjson.JSONObject;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.TimeoutError;
 import com.microsoft.playwright.options.AriaRole;
+import com.microsoft.playwright.options.LoadState;
 import com.microsoft.playwright.options.WaitForSelectorState;
 import com.playwright.utils.BrowserUtil;
 import com.playwright.utils.DeepSeekUtil;
 import com.playwright.utils.LogMsgUtil;
 import com.playwright.utils.ScreenshotUtil;
+//import com.playwright.utils.ZhiHuUtil;
 import com.playwright.websocket.WebSocketClientService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -38,6 +41,9 @@ public class BrowserController {
 
     @Autowired
     private LogMsgUtil logMsgUtil;
+
+//    @Autowired
+//    private ZhiHuUtil zhiHuUtil;
 
     public BrowserController(WebSocketClientService webSocketClientService, DeepSeekUtil deepSeekUtil) {
         this.webSocketClientService = webSocketClientService;
@@ -75,6 +81,112 @@ public class BrowserController {
         return "";
     }
 
+
+    /**
+     * 检查知乎直答登录状态
+     * @param userId 用户唯一标识
+     * @return 登录状态："false"表示未登录，手机号表示已登录
+     */
+    @Operation(summary = "检查知乎直答登录状态",description = "返回用户名表示已登录，false 表示未登录")
+    @GetMapping("/checkZhihuLogin")
+    public String checkZhihuLogin(@Parameter(description = "用户唯一标识") @RequestParam("userId") String userId) {
+        try (BrowserContext context = browserUtil.createPersistentBrowserContext(false, userId, "zhihu")) {
+            Page page = context.newPage();
+
+            // 导航到知乎页面
+            page.navigate("https://zhida.zhihu.com/");
+
+            // 等待页面加载完成
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+
+            // 额外等待页面渲染完成
+            Thread.sleep(3000);
+
+            // 检查是否存在登录/注册按钮
+            Locator loginButton = page.locator("text=登录/注册");
+            if (loginButton.count() > 0 && loginButton.isVisible()) {
+                // 存在登录/注册按钮，说明未登录
+                return "false";
+            } else {
+//                // 不存在登录/注册按钮，说明已登录，跳转到设置页面获取用户名
+//                page.navigate("https://www.zhihu.com/settings/account");
+//                page.waitForLoadState(LoadState.NETWORKIDLE);
+//                Thread.sleep(2000);
+
+                // 提取的用户名
+                Locator usernameElement = page.locator("//*[@id=\"root\"]/div/div[4]/div[2]/div/div[2]/div[1]/div[3]/div/div/div/div/div[2]/div");
+                if (usernameElement.count() > 0) {
+                    String username = usernameElement.textContent().trim();
+                    System.out.println("用户名为：" + username);
+                    return username;
+                } else {
+                    System.out.println("未找到用户名元素");
+                    return "false";
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "false";
+    }
+
+  /**
+ * 获取知乎直答登录二维码
+ * @param userId 用户唯一标识
+ * @return 二维码图片URL 或 "false"表示失败
+ */
+@GetMapping("/getZhihuQrCode")
+@Operation(summary = "获取知乎直答登录二维码", description = "返回二维码截图 URL 或 false 表示失败")
+public String getZhihuQrCode(@Parameter(description = "用户唯一标识") @RequestParam("userId") String userId) {
+    try (BrowserContext context = browserUtil.createPersistentBrowserContext(false, userId, "zhihu")) {
+        Page page = context.newPage();
+        page.navigate("https://zhida.zhihu.com/");
+
+        // 点击登录/注册按钮
+        page.locator("text=登录/注册").click();
+
+
+        Thread.sleep(3000);
+        String url = screenshotUtil.screenshotAndUpload(page, "checkZhihuLogin.png");
+
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("url", url);
+        jsonObject.put("userId", userId);
+        jsonObject.put("type", "RETURN_PC_ZHIHU_QRURL");
+        webSocketClientService.sendMessage(jsonObject.toJSONString());
+
+        // 等待用户扫码登录成功
+        Locator loginSuccess = page.locator("//*[@id=\"root\"]/div/div[4]/div[2]/div/div[2]/div[1]/div[3]/div/div/div/div/div[2]/div");
+        loginSuccess.waitFor(new Locator.WaitForOptions().setTimeout(15000)); // 减少到15秒
+        Thread.sleep(500); // 减少到0.5秒
+
+        // 跳转到主页面检查登录状态
+        page.navigate("https://zhida.zhihu.com/");
+        Thread.sleep(500); // 减少到0.5秒
+
+        // 检查用户信息
+        Locator userElement = page.locator("//*[@id=\"root\"]/div/div[4]/div[2]/div/div[2]/div[1]/div[3]/div/div/div/div/div[2]/div");
+        if (userElement.count() > 0) {
+            String userText = userElement.textContent();
+            JSONObject jsonObjectTwo = new JSONObject();
+            jsonObjectTwo.put("status", userText.isEmpty() ? "已登录" : userText);
+            jsonObjectTwo.put("userId", userId);
+            jsonObjectTwo.put("type", "RETURN_ZHIHU_STATUS");
+            webSocketClientService.sendMessage(jsonObjectTwo.toJSONString());
+            logMsgUtil.sendTaskLog("知乎直答登录成功: " + userText, userId, "知乎直答");
+        } else {
+            // 如果没有找到用户信息，发送未登录状态
+            return "false";
+        }
+
+        return url;
+    } catch (Exception e) {
+        e.printStackTrace();
+        logMsgUtil.sendTaskLog("获取知乎直答登录二维码出错: " + e.getMessage(), userId, "知乎直答");
+    }
+    return "false";
+}
 
     /**
      * 检查元宝主站登录状态

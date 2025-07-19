@@ -50,7 +50,7 @@ page {
   color: royalblue;
 }
 .tab-item.active::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 0;
   left: 50%;
@@ -79,4 +79,3 @@ page {
 .point-text {
   padding: 30rpx;
 }
-

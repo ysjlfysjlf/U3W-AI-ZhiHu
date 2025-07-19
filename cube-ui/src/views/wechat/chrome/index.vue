@@ -511,6 +511,7 @@ export default {
         toneChatId: "",
         ybDsChatId: "",
         dbChatId: "",
+        zhChatId: "",
         isNewChat: true,
       },
       jsonRpcReqest: {
@@ -521,8 +522,20 @@ export default {
       },
       aiList: [
         {
-          name: "DeepSeek",
-          avatar: require("../../../assets/logo/Deepseek.png"),
+          name: '知乎直答',
+          avatar: require('../../../assets/ai/Zhihu.png'),
+          capabilities: [
+            { label: '深度思考', value: 'deep_thinking' }
+          ],
+          selectedCapabilities: ['deep_thinking'],
+          enabled: true,
+          status: 'idle',
+          progressLogs: [],
+          isExpanded: true
+        },
+        {
+          name: 'DeepSeek',
+          avatar: require('../../../assets/logo/Deepseek.png'),
           capabilities: [
             { label: "深度思考", value: "deep_thinking" },
             { label: "联网搜索", value: "web_search" },
@@ -674,9 +687,15 @@ export default {
         this.$set(ai, "status", "running");
       });
 
-      this.enabledAIs.forEach((ai) => {
-        if (ai.name === "DeepSeek" && ai.enabled) {
-          this.userInfoReq.roles = this.userInfoReq.roles + "deepseek,";
+      this.enabledAIs.forEach(ai => {
+        if(ai.name === '知乎直答'){
+          this.userInfoReq.roles = this.userInfoReq.roles + 'zhihu,';
+          if(ai.selectedCapabilities.includes("deep_thinking")){
+            this.userInfoReq.roles = this.userInfoReq.roles + 'zhihu-deepseek-sdsk,';
+          }
+        }
+        if(ai.name === 'DeepSeek' && ai.enabled){
+          this.userInfoReq.roles = this.userInfoReq.roles + 'deepseek,';
           if (ai.selectedCapabilities.includes("deep_thinking")) {
             this.userInfoReq.roles = this.userInfoReq.roles + "ds-sdsk,";
           }
@@ -944,14 +963,17 @@ export default {
       // 根据消息类型更新对应AI的状态和结果
       let targetAI = null;
       switch (dataObj.type) {
-        case "RETURN_YBT1_RES":
-        case "RETURN_TURBOS_RES":
-        case "RETURN_TURBOS_LARGE_RES":
-        case "RETURN_DEEPSEEK_RES":
-          console.log("收到DeepSeek消息:", dataObj);
-          targetAI = this.enabledAIs.find((ai) => ai.name === "DeepSeek");
+        case 'RETURN_ZH_RES':
+          console.log('收到知乎直答消息:',data);
+          targetAI = this.enabledAIs.find(ai => ai.name === '知乎直答');
           break;
-        case "RETURN_YBDS_RES":
+        case 'RETURN_YBT1_RES':
+        case 'RETURN_TURBOS_RES':
+        case 'RETURN_TURBOS_LARGE_RES':
+        case 'RETURN_DEEPSEEK_RES':
+          console.log('收到DeepSeek消息:', dataObj);
+          targetAI = this.enabledAIs.find(ai => ai.name === 'DeepSeek');
+          break;
         case "RETURN_DB_RES":
           console.log("收到豆包消息:", dataObj);
           targetAI = this.enabledAIs.find((ai) => ai.name === "豆包");
@@ -1278,23 +1300,25 @@ export default {
       // 重置AI列表为初始状态
       this.aiList = [
         {
-          name: "DeepSeek",
-          avatar: require("../../../assets/logo/Deepseek.png"),
+          name: '知乎直答',
+          avatar: require('../../../assets/ai/Zhihu.png'),
           capabilities: [
-            { label: "深度思考", value: "deep_thinking" },
-            { label: "联网搜索", value: "web_search" },
+            { label: '深度思考', value: 'deep_thinking' }
           ],
-          selectedCapabilities: ["deep_thinking", "web_search"],
+          selectedCapabilities: ['deep_thinking'],
           enabled: true,
-          status: "idle",
+          status: 'idle',
           progressLogs: [],
-          isExpanded: true,
+          isExpanded: true
         },
         {
-          name: "豆包",
-          avatar: require("../../../assets/ai/豆包.png"),
-          capabilities: [{ label: "深度思考", value: "deep_thinking" }],
-          selectedCapabilities: ["deep_thinking"],
+          name: 'DeepSeek',
+          avatar: require('../../../assets/logo/Deepseek.png'),
+          capabilities: [
+            { label: '深度思考', value: 'deep_thinking' },
+            { label: '联网搜索', value: 'web_search' }
+          ],
+          selectedCapabilities: ['deep_thinking', 'web_search'],
           enabled: true,
           status: "idle",
           progressLogs: [],
@@ -1313,6 +1337,18 @@ export default {
           progressLogs: [],
           isExpanded: true,
         },
+        {
+          name: '豆包',
+          avatar: require('../../../assets/ai/豆包.png'),
+          capabilities: [
+            { label: '深度思考', value: 'deep_thinking' }
+          ],
+          selectedCapabilities: ['deep_thinking'],
+          enabled: true,
+          status: 'idle',
+          progressLogs: [],
+          isExpanded: true
+        }
       ];
       // 展开相关区域
       this.activeCollapses = ["ai-selection", "prompt-input"];

@@ -39,6 +39,15 @@ function initWx() {
   return newWx;
 }
 target[key] = initWx();
+if (!target[key].canIUse('getAppBaseInfo')) {
+  target[key].getAppBaseInfo = target[key].getSystemInfoSync;
+}
+if (!target[key].canIUse('getWindowInfo')) {
+  target[key].getWindowInfo = target[key].getSystemInfoSync;
+}
+if (!target[key].canIUse('getDeviceInfo')) {
+  target[key].getDeviceInfo = target[key].getSystemInfoSync;
+}
 var _default = target[key];
 exports.default = _default;
 
@@ -351,6 +360,10 @@ var promiseInterceptor = {
     }
     return new Promise(function (resolve, reject) {
       res.then(function (res) {
+        if (!res) {
+          resolve(res);
+          return;
+        }
         if (res[0]) {
           reject(res[0]);
         } else {
@@ -360,7 +373,7 @@ var promiseInterceptor = {
     });
   }
 };
-var SYNC_API_RE = /^\$|Window$|WindowStyle$|sendHostEvent|sendNativeEvent|restoreGlobal|requireGlobal|getCurrentSubNVue|getMenuButtonBoundingClientRect|^report|interceptors|Interceptor$|getSubNVueById|requireNativePlugin|upx2px|hideKeyboard|canIUse|^create|Sync$|Manager$|base64ToArrayBuffer|arrayBufferToBase64|getLocale|setLocale|invokePushCallback|getWindowInfo|getDeviceInfo|getAppBaseInfo|getSystemSetting|getAppAuthorizeSetting|initUTS|requireUTS|registerUTS/;
+var SYNC_API_RE = /^\$|__f__|Window$|WindowStyle$|sendHostEvent|sendNativeEvent|restoreGlobal|requireGlobal|getCurrentSubNVue|getMenuButtonBoundingClientRect|^report|interceptors|Interceptor$|getSubNVueById|requireNativePlugin|rpx2px|upx2px|hideKeyboard|canIUse|^create|Sync$|Manager$|base64ToArrayBuffer|arrayBufferToBase64|getLocale|setLocale|invokePushCallback|getWindowInfo|getDeviceInfo|getAppBaseInfo|getSystemSetting|getAppAuthorizeSetting|initUTS|requireUTS|registerUTS/;
 var CONTEXT_API_RE = /^create|Manager$/;
 
 // Context例外情况
@@ -417,7 +430,7 @@ function promisify(name, api) {
       params[_key2 - 1] = arguments[_key2];
     }
     if (isFn(options.success) || isFn(options.fail) || isFn(options.complete)) {
-      return wrapperReturnValue(name, invokeApi.apply(void 0, [name, api, options].concat(params)));
+      return wrapperReturnValue(name, invokeApi.apply(void 0, [name, api, Object.assign({}, options)].concat(params)));
     }
     return wrapperReturnValue(name, handlePromise(new Promise(function (resolve, reject) {
       invokeApi.apply(void 0, [name, api, Object.assign({}, options, {
@@ -433,11 +446,14 @@ var isIOS = false;
 var deviceWidth = 0;
 var deviceDPR = 0;
 function checkDeviceWidth() {
-  var _wx$getSystemInfoSync = wx.getSystemInfoSync(),
-    platform = _wx$getSystemInfoSync.platform,
-    pixelRatio = _wx$getSystemInfoSync.pixelRatio,
-    windowWidth = _wx$getSystemInfoSync.windowWidth; // uni=>wx runtime 编译目标是 uni 对象，内部不允许直接使用 uni
-
+  var windowWidth, pixelRatio, platform;
+  {
+    var windowInfo = typeof wx.getWindowInfo === 'function' && wx.getWindowInfo() ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    var deviceInfo = typeof wx.getDeviceInfo === 'function' && wx.getDeviceInfo() ? wx.getDeviceInfo() : wx.getSystemInfoSync();
+    windowWidth = windowInfo.windowWidth;
+    pixelRatio = windowInfo.pixelRatio;
+    platform = deviceInfo.platform;
+  }
   deviceWidth = windowWidth;
   deviceDPR = pixelRatio;
   isIOS = platform === 'ios';
@@ -470,9 +486,18 @@ var LOCALE_EN = 'en';
 var LOCALE_FR = 'fr';
 var LOCALE_ES = 'es';
 var messages = {};
+function getLocaleLanguage() {
+  var localeLanguage = '';
+  {
+    var appBaseInfo = typeof wx.getAppBaseInfo === 'function' && wx.getAppBaseInfo() ? wx.getAppBaseInfo() : wx.getSystemInfoSync();
+    var language = appBaseInfo && appBaseInfo.language ? appBaseInfo.language : LOCALE_EN;
+    localeLanguage = normalizeLocale(language) || LOCALE_EN;
+  }
+  return localeLanguage;
+}
 var locale;
 {
-  locale = normalizeLocale(wx.getSystemInfoSync().language) || LOCALE_EN;
+  locale = getLocaleLanguage();
 }
 function initI18nMessages() {
   if (!isEnableLocale()) {
@@ -594,7 +619,7 @@ function getLocale$1() {
       return app.$vm.$locale;
     }
   }
-  return normalizeLocale(wx.getSystemInfoSync().language) || LOCALE_EN;
+  return getLocaleLanguage();
 }
 function setLocale$1(locale) {
   var app = isFn(getApp) ? getApp() : false;
@@ -628,6 +653,7 @@ var interceptors = {
 var baseApi = /*#__PURE__*/Object.freeze({
   __proto__: null,
   upx2px: upx2px,
+  rpx2px: upx2px,
   getLocale: getLocale$1,
   setLocale: setLocale$1,
   onLocaleChange: onLocaleChange,
@@ -722,6 +748,43 @@ function addSafeAreaInsets(result) {
     };
   }
 }
+function getOSInfo(system, platform) {
+  var osName = '';
+  var osVersion = '';
+  if (platform && "mp-weixin" === 'mp-baidu') {
+    osName = platform;
+    osVersion = system;
+  } else {
+    osName = system.split(' ')[0] || platform;
+    osVersion = system.split(' ')[1] || '';
+  }
+  osName = osName.toLocaleLowerCase();
+  switch (osName) {
+    case 'harmony': // alipay
+    case 'ohos': // weixin
+    case 'openharmony':
+      // feishu
+      osName = 'harmonyos';
+      break;
+    case 'iphone os':
+      // alipay
+      osName = 'ios';
+      break;
+    case 'mac': // weixin qq
+    case 'darwin':
+      // feishu
+      osName = 'macos';
+      break;
+    case 'windows_nt':
+      // feishu
+      osName = 'windows';
+      break;
+  }
+  return {
+    osName: osName,
+    osVersion: osVersion
+  };
+}
 function populateParameters(result) {
   var _result$brand = result.brand,
     brand = _result$brand === void 0 ? '' : _result$brand,
@@ -743,12 +806,9 @@ function populateParameters(result) {
   var extraParam = {};
 
   // osName osVersion
-  var osName = '';
-  var osVersion = '';
-  {
-    osName = system.split(' ')[0] || '';
-    osVersion = system.split(' ')[1] || '';
-  }
+  var _getOSInfo = getOSInfo(system, platform),
+    osName = _getOSInfo.osName,
+    osVersion = _getOSInfo.osVersion;
   var hostVersion = version;
 
   // deviceType
@@ -770,18 +830,19 @@ function populateParameters(result) {
   var _SDKVersion = SDKVersion;
 
   // hostLanguage
-  var hostLanguage = language.replace(/_/g, '-');
+  var hostLanguage = (language || '').replace(/_/g, '-');
 
   // wx.getAccountInfoSync
 
   var parameters = {
-    appId: "__UNI__FD6EE0B",
+    appId: "__UNI__0ABC7B8",
     appName: "U3W-AI",
     appVersion: "1.0",
     appVersionCode: "1",
     appLanguage: getAppLanguage(hostLanguage),
-    uniCompileVersion: "4.08",
-    uniRuntimeVersion: "4.08",
+    uniCompileVersion: "4.75",
+    uniCompilerVersion: "4.75",
+    uniRuntimeVersion: "4.75",
     uniPlatform: undefined || "mp-weixin",
     deviceBrand: deviceBrand,
     deviceModel: model,
@@ -804,7 +865,8 @@ function populateParameters(result) {
     ua: undefined,
     hostPackageName: undefined,
     browserName: undefined,
-    browserVersion: undefined
+    browserVersion: undefined,
+    isUniAppX: false
   };
   Object.assign(result, parameters, extraParam);
 }
@@ -872,9 +934,9 @@ var getAppBaseInfo = {
       SDKVersion = _result.SDKVersion,
       theme = _result.theme;
     var _hostName = getHostName(result);
-    var hostLanguage = language.replace('_', '-');
+    var hostLanguage = (language || '').replace('_', '-');
     result = sortObject(Object.assign(result, {
-      appId: "__UNI__FD6EE0B",
+      appId: "__UNI__0ABC7B8",
       appName: "U3W-AI",
       appVersion: "1.0",
       appVersionCode: "1",
@@ -883,7 +945,12 @@ var getAppBaseInfo = {
       hostLanguage: hostLanguage,
       hostName: _hostName,
       hostSDKVersion: SDKVersion,
-      hostTheme: theme
+      hostTheme: theme,
+      isUniAppX: false,
+      uniPlatform: undefined || "mp-weixin",
+      uniCompileVersion: "4.75",
+      uniCompilerVersion: "4.75",
+      uniRuntimeVersion: "4.75"
     }));
   }
 };
@@ -891,14 +958,23 @@ var getDeviceInfo = {
   returnValue: function returnValue(result) {
     var _result2 = result,
       brand = _result2.brand,
-      model = _result2.model;
+      model = _result2.model,
+      _result2$system = _result2.system,
+      system = _result2$system === void 0 ? '' : _result2$system,
+      _result2$platform = _result2.platform,
+      platform = _result2$platform === void 0 ? '' : _result2$platform;
     var deviceType = getGetDeviceType(result, model);
     var deviceBrand = getDeviceBrand(brand);
     useDeviceId(result);
+    var _getOSInfo2 = getOSInfo(system, platform),
+      osName = _getOSInfo2.osName,
+      osVersion = _getOSInfo2.osVersion;
     result = sortObject(Object.assign(result, {
       deviceType: deviceType,
       deviceBrand: deviceBrand,
-      deviceModel: model
+      deviceModel: model,
+      osName: osName,
+      osVersion: osVersion
     }));
   }
 };
@@ -1248,6 +1324,12 @@ var offPushMessage = function offPushMessage(fn) {
     }
   }
 };
+function __f__(type) {
+  for (var _len3 = arguments.length, args = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
+    args[_key3 - 1] = arguments[_key3];
+  }
+  console[type].apply(console, args);
+}
 var baseInfo = wx.getAppBaseInfo && wx.getAppBaseInfo();
 if (!baseInfo) {
   baseInfo = wx.getSystemInfoSync();
@@ -1260,7 +1342,8 @@ var api = /*#__PURE__*/Object.freeze({
   getPushClientId: getPushClientId,
   onPushMessage: onPushMessage,
   offPushMessage: offPushMessage,
-  invokePushCallback: invokePushCallback
+  invokePushCallback: invokePushCallback,
+  __f__: __f__
 });
 var mocks = ['__route__', '__wxExparserNodeId__', '__wxWebviewId__'];
 function findVmByVueId(vm, vuePid) {
@@ -1402,8 +1485,8 @@ var customize = cached(function (str) {
 function initTriggerEvent(mpInstance) {
   var oldTriggerEvent = mpInstance.triggerEvent;
   var newTriggerEvent = function newTriggerEvent(event) {
-    for (var _len3 = arguments.length, args = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
-      args[_key3 - 1] = arguments[_key3];
+    for (var _len4 = arguments.length, args = new Array(_len4 > 1 ? _len4 - 1 : 0), _key4 = 1; _key4 < _len4; _key4++) {
+      args[_key4 - 1] = arguments[_key4];
     }
     // 事件名统一转驼峰格式，仅处理：当前组件为 vue 组件、当前组件为 vue 组件子组件
     if (this.$vm || this.dataset && this.dataset.comType) {
@@ -1430,8 +1513,8 @@ function initHook(name, options, isComponent) {
     markMPComponent(this);
     initTriggerEvent(this);
     if (oldHook) {
-      for (var _len4 = arguments.length, args = new Array(_len4), _key4 = 0; _key4 < _len4; _key4++) {
-        args[_key4] = arguments[_key4];
+      for (var _len5 = arguments.length, args = new Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
+        args[_key5] = arguments[_key5];
       }
       return oldHook.apply(this, args);
     }
@@ -2110,10 +2193,19 @@ function parseBaseApp(vm, _ref4) {
       appOptions[name] = methods[name];
     });
   }
-  initAppLocale(_vue.default, vm, normalizeLocale(wx.getSystemInfoSync().language) || LOCALE_EN);
+  initAppLocale(_vue.default, vm, getLocaleLanguage$1());
   initHooks(appOptions, hooks);
   initUnknownHooks(appOptions, vm.$options);
   return appOptions;
+}
+function getLocaleLanguage$1() {
+  var localeLanguage = '';
+  {
+    var appBaseInfo = wx.getAppBaseInfo();
+    var language = appBaseInfo && appBaseInfo.language ? appBaseInfo.language : LOCALE_EN;
+    localeLanguage = normalizeLocale(language) || LOCALE_EN;
+  }
+  return localeLanguage;
 }
 function parseApp(vm) {
   return parseBaseApp(vm, {
@@ -2331,16 +2423,16 @@ function createSubpackageApp(vm) {
   });
   if (isFn(appOptions.onShow) && wx.onAppShow) {
     wx.onAppShow(function () {
-      for (var _len5 = arguments.length, args = new Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
-        args[_key5] = arguments[_key5];
+      for (var _len6 = arguments.length, args = new Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
+        args[_key6] = arguments[_key6];
       }
       vm.__call_hook('onShow', args);
     });
   }
   if (isFn(appOptions.onHide) && wx.onAppHide) {
     wx.onAppHide(function () {
-      for (var _len6 = arguments.length, args = new Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
-        args[_key6] = arguments[_key6];
+      for (var _len7 = arguments.length, args = new Array(_len7), _key7 = 0; _key7 < _len7; _key7++) {
+        args[_key7] = arguments[_key7];
       }
       vm.__call_hook('onHide', args);
     });
@@ -2355,16 +2447,16 @@ function createPlugin(vm) {
   var appOptions = parseApp(vm);
   if (isFn(appOptions.onShow) && wx.onAppShow) {
     wx.onAppShow(function () {
-      for (var _len7 = arguments.length, args = new Array(_len7), _key7 = 0; _key7 < _len7; _key7++) {
-        args[_key7] = arguments[_key7];
+      for (var _len8 = arguments.length, args = new Array(_len8), _key8 = 0; _key8 < _len8; _key8++) {
+        args[_key8] = arguments[_key8];
       }
       vm.__call_hook('onShow', args);
     });
   }
   if (isFn(appOptions.onHide) && wx.onAppHide) {
     wx.onAppHide(function () {
-      for (var _len8 = arguments.length, args = new Array(_len8), _key8 = 0; _key8 < _len8; _key8++) {
-        args[_key8] = arguments[_key8];
+      for (var _len9 = arguments.length, args = new Array(_len9), _key9 = 0; _key9 < _len9; _key9++) {
+        args[_key9] = arguments[_key9];
       }
       vm.__call_hook('onHide', args);
     });
@@ -2649,7 +2741,7 @@ var _typeof = __webpack_require__(/*! ./typeof.js */ 13)["default"];
 var toPrimitive = __webpack_require__(/*! ./toPrimitive.js */ 14);
 function toPropertyKey(t) {
   var i = toPrimitive(t, "string");
-  return "symbol" == _typeof(i) ? i : String(i);
+  return "symbol" == _typeof(i) ? i : i + "";
 }
 module.exports = toPropertyKey, module.exports.__esModule = true, module.exports["default"] = module.exports;
 
@@ -3395,7 +3487,7 @@ module.exports = _createClass, module.exports.__esModule = true, module.exports[
 __webpack_require__.r(__webpack_exports__);
 /* WEBPACK VAR INJECTION */(function(global) {/*!
  * Vue.js v2.6.11
- * (c) 2014-2023 Evan You
+ * (c) 2014-2024 Evan You
  * Released under the MIT License.
  */
 /*  */
@@ -3908,7 +4000,7 @@ var hasProto = '__proto__' in {};
 var inBrowser = typeof window !== 'undefined';
 var inWeex = typeof WXEnvironment !== 'undefined' && !!WXEnvironment.platform;
 var weexPlatform = inWeex && WXEnvironment.platform.toLowerCase();
-var UA = inBrowser && window.navigator.userAgent.toLowerCase();
+var UA = inBrowser && window.navigator && window.navigator.userAgent.toLowerCase();
 var isIE = UA && /msie|trident/.test(UA);
 var isIE9 = UA && UA.indexOf('msie 9.0') > 0;
 var isEdge = UA && UA.indexOf('edge/') > 0;
@@ -9466,9 +9558,9 @@ internalMixin(Vue);
 
 /***/ }),
 /* 26 */
-/*!************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/pages.json ***!
-  \************************************************************/
+/*!****************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/pages.json ***!
+  \****************************************************/
 /*! no static exports found */
 /***/ (function(module, exports) {
 
@@ -9489,6 +9581,7 @@ var _classCallCheck = __webpack_require__(/*! @babel/runtime/helpers/classCallCh
 var _createClass = __webpack_require__(/*! @babel/runtime/helpers/createClass */ 24);
 var _typeof = __webpack_require__(/*! @babel/runtime/helpers/typeof */ 13);
 var _defineProperty = __webpack_require__(/*! @babel/runtime/helpers/defineProperty */ 11);
+var _sys$system$replace, _sys$system;
 function _createSuper(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 function _isNativeReflectConstruct() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {})); return true; } catch (e) { return false; } }
 /**
@@ -9497,14 +9590,14 @@ function _isNativeReflectConstruct() { if (typeof Reflect === "undefined" || !Re
 var sys = uni.getSystemInfoSync();
 
 // 访问开始即启动小程序，访问结束结分为：进入后台超过5min、在前台无任何操作超过30min、在新的来源打开小程序；
-var STAT_VERSION = "4.08";
+var STAT_VERSION = "4.75";
 var STAT_URL = 'https://tongji.dcloud.io/uni/stat';
 var STAT_H5_URL = 'https://tongji.dcloud.io/uni/stat.gif';
 var PAGE_PVER_TIME = 1800; // 页面在前台无操作结束访问时间 单位s
 var APP_PVER_TIME = 300; // 应用在后台结束访问时间 单位s
 var OPERATING_TIME = 10; // 数据上报时间 单位s
 var DIFF_TIME = 60 * 1000 * 60 * 24;
-var appid = "__UNI__FD6EE0B"; // 做应用隔离
+var appid = "__UNI__0ABC7B8"; // 做应用隔离
 var dbSet = function dbSet(name, value) {
   var data = uni.getStorageSync('$$STAT__DBDATA:' + appid) || {};
   if (!data) {
@@ -9544,7 +9637,7 @@ var dbRemove = function dbRemove(name) {
 // 获取 manifest.json 中统计配置
 var uniStatisticsConfig = {"enable":true};
 var statConfig = {
-  appid: "__UNI__FD6EE0B"
+  appid: "__UNI__0ABC7B8"
 };
 var titleJsons = {};
 var debug =  false || false;
@@ -9901,7 +9994,7 @@ var is_report_data = function is_report_data() {
   });
 };
 var requestData = function requestData(done) {
-  var appid = "__UNI__FD6EE0B";
+  var appid = "__UNI__0ABC7B8";
   var formData = {
     usv: STAT_VERSION,
     conf: JSON.stringify({
@@ -10183,7 +10276,7 @@ var statData = {
   // 手机品牌
   md: sys.model,
   // 手机型号
-  sv: sys.system.replace(/(Android|iOS)\s/, ''),
+  sv: (_sys$system$replace = (_sys$system = sys.system) === null || _sys$system === void 0 ? void 0 : _sys$system.replace(/(Android|iOS)\s/, '')) !== null && _sys$system$replace !== void 0 ? _sys$system$replace : '',
   // 手机系统版本
   mpsdk: sys.SDKVersion || '',
   // x程序 sdk version
@@ -11070,9 +11163,9 @@ module.exports = _getPrototypeOf, module.exports.__esModule = true, module.expor
 
 /***/ }),
 /* 32 */
-/*!*****************************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/pages.json?{"type":"style"} ***!
-  \*****************************************************************************/
+/*!*********************************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/pages.json?{"type":"style"} ***!
+  \*********************************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -11127,16 +11220,16 @@ exports.default = _default;
 /* 34 */,
 /* 35 */,
 /* 36 */
-/*!***********************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/config.js ***!
-  \***********************************************************/
+/*!***************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/config.js ***!
+  \***************************************************/
 /*! no static exports found */
 /***/ (function(module, exports) {
 
 // 应用全局配置
 module.exports = {
   //生产
-  baseUrl: 'https://u3w.com/cubeServer',
+  baseUrl: 'http://127.0.0.1:8081',
   // 应用信息
   appInfo: {
     // true: 流式接口    false: 非流式接口
@@ -11162,9 +11255,9 @@ module.exports = {
 
 /***/ }),
 /* 37 */
-/*!****************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/store/index.js ***!
-  \****************************************************************/
+/*!********************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/store/index.js ***!
+  \********************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -12448,9 +12541,9 @@ module.exports = index_cjs;
 
 /***/ }),
 /* 39 */
-/*!***********************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/store/modules/user.js ***!
-  \***********************************************************************/
+/*!***************************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/store/modules/user.js ***!
+  \***************************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -12628,9 +12721,9 @@ exports.default = _default;
 
 /***/ }),
 /* 40 */
-/*!******************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/utils/storage.js ***!
-  \******************************************************************/
+/*!**********************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/utils/storage.js ***!
+  \**********************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -12676,9 +12769,9 @@ exports.default = _default;
 
 /***/ }),
 /* 41 */
-/*!*******************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/utils/constant.js ***!
-  \*******************************************************************/
+/*!***********************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/utils/constant.js ***!
+  \***********************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -12703,9 +12796,9 @@ exports.default = _default;
 
 /***/ }),
 /* 42 */
-/*!**************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/api/login.js ***!
-  \**************************************************************/
+/*!******************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/api/login.js ***!
+  \******************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -12821,9 +12914,9 @@ function getCodeImg() {
 
 /***/ }),
 /* 43 */
-/*!******************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/utils/request.js ***!
-  \******************************************************************/
+/*!**********************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/utils/request.js ***!
+  \**********************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -12922,9 +13015,9 @@ exports.default = _default;
 
 /***/ }),
 /* 44 */
-/*!********************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/log.js ***!
-  \********************************************************/
+/*!************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/log.js ***!
+  \************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -12963,9 +13056,9 @@ module.exports = {
 
 /***/ }),
 /* 45 */
-/*!***************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/utils/auth.js ***!
-  \***************************************************************/
+/*!*******************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/utils/auth.js ***!
+  \*******************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -12992,9 +13085,9 @@ function removeToken() {
 
 /***/ }),
 /* 46 */
-/*!********************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/utils/errorCode.js ***!
-  \********************************************************************/
+/*!************************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/utils/errorCode.js ***!
+  \************************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -13015,9 +13108,9 @@ exports.default = _default;
 
 /***/ }),
 /* 47 */
-/*!*****************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/utils/common.js ***!
-  \*****************************************************************/
+/*!*********************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/utils/common.js ***!
+  \*********************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -13092,9 +13185,9 @@ function tansParams(params) {
 
 /***/ }),
 /* 48 */
-/*!***************************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/static/images/profile.jpg ***!
-  \***************************************************************************/
+/*!*******************************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/static/images/profile.jpg ***!
+  \*******************************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -13102,9 +13195,9 @@ module.exports = __webpack_require__.p + "static/images/profile.jpg";
 
 /***/ }),
 /* 49 */
-/*!******************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/store/getters.js ***!
-  \******************************************************************/
+/*!**********************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/store/getters.js ***!
+  \**********************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -13270,9 +13363,9 @@ function normalizeComponent (
 
 /***/ }),
 /* 53 */
-/*!******************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/plugins/index.js ***!
-  \******************************************************************/
+/*!**********************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/plugins/index.js ***!
+  \**********************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -13301,9 +13394,9 @@ exports.default = _default;
 
 /***/ }),
 /* 54 */
-/*!****************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/plugins/tab.js ***!
-  \****************************************************************/
+/*!********************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/plugins/tab.js ***!
+  \********************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -13349,9 +13442,9 @@ exports.default = _default;
 
 /***/ }),
 /* 55 */
-/*!*****************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/plugins/auth.js ***!
-  \*****************************************************************/
+/*!*********************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/plugins/auth.js ***!
+  \*********************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -13424,9 +13517,9 @@ exports.default = _default;
 
 /***/ }),
 /* 56 */
-/*!******************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/plugins/modal.js ***!
-  \******************************************************************/
+/*!**********************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/plugins/modal.js ***!
+  \**********************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -13518,9 +13611,9 @@ exports.default = _default;
 
 /***/ }),
 /* 57 */
-/*!***************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/permission.js ***!
-  \***************************************************************/
+/*!*******************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/permission.js ***!
+  \*******************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -13718,7 +13811,7 @@ function _regeneratorRuntime() {
   function makeInvokeMethod(e, r, n) {
     var o = h;
     return function (i, a) {
-      if (o === f) throw new Error("Generator is already running");
+      if (o === f) throw Error("Generator is already running");
       if (o === s) {
         if ("throw" === i) throw a;
         return {
@@ -13866,7 +13959,7 @@ function _regeneratorRuntime() {
           } else if (c) {
             if (this.prev < i.catchLoc) return handle(i.catchLoc, !0);
           } else {
-            if (!u) throw new Error("try statement without catch or finally");
+            if (!u) throw Error("try statement without catch or finally");
             if (this.prev < i.finallyLoc) return handle(i.finallyLoc);
           }
         }
@@ -13906,7 +13999,7 @@ function _regeneratorRuntime() {
           return o;
         }
       }
-      throw new Error("illegal catch attempt");
+      throw Error("illegal catch attempt");
     },
     delegateYield: function delegateYield(e, r, n) {
       return this.delegate = {
@@ -13961,9 +14054,9 @@ module.exports = _asyncToGenerator, module.exports.__esModule = true, module.exp
 
 /***/ }),
 /* 75 */
-/*!***************************************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/node_modules/marked/lib/marked.umd.js ***!
-  \***************************************************************************************/
+/*!*******************************************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/node_modules/marked/lib/marked.umd.js ***!
+  \*******************************************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -16680,7 +16773,7 @@ function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len 
   if (__exports != exports) module.exports = exports;
   return module.exports;
 });
-/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../../../../../../../../Applications/HBuilderX.app/Contents/HBuilderX/plugins/uniapp-cli/node_modules/webpack/buildin/module.js */ 76)(module)))
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../../../../../HBuilderH/HBuilderX.4.75.2025071105/HBuilderX/plugins/uniapp-cli/node_modules/webpack/buildin/module.js */ 76)(module)))
 
 /***/ }),
 /* 76 */
@@ -16716,9 +16809,9 @@ module.exports = function(module) {
 
 /***/ }),
 /* 77 */
-/*!********************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/api/wechat/aigc.js ***!
-  \********************************************************************/
+/*!************************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/api/wechat/aigc.js ***!
+  \************************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -17130,9 +17223,9 @@ module.exports = v4;
 /* 89 */,
 /* 90 */,
 /* 91 */
-/*!***************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/api/report.js ***!
-  \***************************************************************/
+/*!*******************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/api/report.js ***!
+  \*******************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -17201,9 +17294,9 @@ function getUserPromptTem(userId, agentId) {
 /* 98 */,
 /* 99 */,
 /* 100 */
-/*!********************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/api/system/user.js ***!
-  \********************************************************************/
+/*!************************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/api/system/user.js ***!
+  \************************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -17261,9 +17354,9 @@ function uploadAvatar(data) {
 
 /***/ }),
 /* 101 */
-/*!*****************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/utils/upload.js ***!
-  \*****************************************************************/
+/*!*********************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/utils/upload.js ***!
+  \*********************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -17388,9 +17481,9 @@ exports.default = _default;
 /* 139 */,
 /* 140 */,
 /* 141 */
-/*!*****************************************************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/uni_modules/uni-icons/components/uni-icons/icons.js ***!
-  \*****************************************************************************************************/
+/*!*********************************************************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/uni_modules/uni-icons/components/uni-icons/icons.js ***!
+  \*********************************************************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -18430,9 +18523,9 @@ exports.default = _default;
 /* 161 */,
 /* 162 */,
 /* 163 */
-/*!********************************************************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/uni_modules/uni-forms/components/uni-forms/validate.js ***!
-  \********************************************************************************************************/
+/*!************************************************************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/uni_modules/uni-forms/components/uni-forms/validate.js ***!
+  \************************************************************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -19121,9 +19214,9 @@ exports.default = _default;
 
 /***/ }),
 /* 164 */
-/*!*****************************************************************************************************!*\
-  !*** /Users/workspace/AGI/u3w/U3W-AI/cube-mini/uni_modules/uni-forms/components/uni-forms/utils.js ***!
-  \*****************************************************************************************************/
+/*!*********************************************************************************************!*\
+  !*** D:/U3W-AIProject/U3W-AI/cube-mini/uni_modules/uni-forms/components/uni-forms/utils.js ***!
+  \*********************************************************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 

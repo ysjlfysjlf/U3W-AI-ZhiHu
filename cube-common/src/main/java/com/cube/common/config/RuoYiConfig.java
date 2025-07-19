@@ -118,6 +118,6 @@ public class RuoYiConfig
     public static String getUploadPath()
     {
 //        return getProfile() + "/upload";
-        return "F:/AGI/chatfile";
+        return "D:/U3W-AIProject/AGI/chatfile";
     }
 }

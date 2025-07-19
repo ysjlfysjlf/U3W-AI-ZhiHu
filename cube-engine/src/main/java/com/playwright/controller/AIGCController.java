@@ -55,6 +55,9 @@ public class AIGCController {
     }
 
     @Autowired
+    private ZhiHuUtil zhiHuUtil;
+
+    @Autowired
     private DeepSeekUtil deepSeekUtil;
 
     // 从配置文件中注入URL 调用远程API存储数据
@@ -1226,6 +1229,172 @@ public class AIGCController {
             e.printStackTrace();
             return "获取内容失败: " + e.getMessage();
         }
+    }
+
+
+    /**
+     * 处理知乎直答的请求
+     * @param userInfoRequest 包含用户ID、角色、提示信息等
+     * @return 知乎直答生成的内容
+     */
+    @Operation(summary = "启动知乎直答AI生成", description = "调用知乎直答AI平台生成内容并抓取结果")
+    @ApiResponse(responseCode = "200", description = "处理成功", content = @Content(mediaType = "application/json"))
+    @PostMapping("/startZH")
+    public String startZH(@io.swagger.v3.oas.annotations.parameters.RequestBody(description = "用户信息请求体", required = true,
+        content = @Content(schema = @Schema(implementation = UserInfoRequest.class))) @RequestBody UserInfoRequest userInfoRequest) {
+        try (BrowserContext context = browserUtil.createPersistentBrowserContext(false, userInfoRequest.getUserId(), "zhihu")) {
+            // 初始化变量
+            String userId = userInfoRequest.getUserId();
+            String roles = userInfoRequest.getRoles();
+            String userPrompt = userInfoRequest.getUserPrompt();
+            
+            logInfo.sendTaskLog("知乎直答准备就绪，正在打开页面", userId, "知乎直答");
+            
+            // 初始化页面并导航到知乎直答搜索页面
+            Page page = context.newPage();
+            page.navigate("https://zhida.zhihu.com/search");
+            
+            page.waitForLoadState(LoadState.LOAD);
+            Thread.sleep(500);
+            logInfo.sendTaskLog("知乎直答页面打开完成", userId, "知乎直答");
+
+            
+                         // 控制深度思考模式 - 根据外层背景色和内层transform值检测状态
+              try {
+                  // 定位外层容器 - 这是状态指示器的容器
+                  Locator outerContainer = page.locator("//*[@id=\"fullScreen\"]/div[1]/div/div/div[2]/div/div/div[2]/div[1]/div[1]/div[2]");
+                  
+                  if (outerContainer.count() > 0) {
+                      // 检测当前深度思考模式的状态 - 同时检查背景色和transform值
+                      Boolean isDeepThinkingEnabled = (Boolean) page.evaluate("""
+                          () => {
+                              // 查找外层容器（背景色变化的元素）
+                              const outerXpath = '//*[@id="fullScreen"]/div[1]/div/div/div[2]/div/div/div[2]/div[1]/div[1]/div[2]';
+                              const outerResult = document.evaluate(outerXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+                              const outer = outerResult.singleNodeValue;
+                              
+                              // 查找内层容器（transform变化的元素）
+                              const innerXpath = '//*[@id="fullScreen"]/div[1]/div/div/div[2]/div/div/div[2]/div[1]/div[1]/div[2]/div';
+                              const innerResult = document.evaluate(innerXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+                              const inner = innerResult.singleNodeValue;
+                              
+                              if (outer && inner) {
+                                  // 获取外层背景色
+                                  const outerStyle = window.getComputedStyle(outer);
+                                  const bgColor = outerStyle.backgroundColor;
+                                  
+                                  // 获取内层transform值
+                                  const innerStyle = window.getComputedStyle(inner);
+                                  const transform = innerStyle.transform;
+                                  
+                                  // 判断状态：
+                                  // 1. 开启: 背景色接近rgb(90, 77, 248)且transform包含translateX(10px)
+                                  // 2. 关闭: 背景色接近rgb(196, 199, 206)且transform包含translateX(0px)
+                                  const isBlueBackground = bgColor.includes('90') && bgColor.includes('77') && bgColor.includes('248');
+                                  const isTranslated = transform.includes('matrix') && !transform.includes('matrix(1, 0, 0, 1, 0, 0)');
+                                  
+                                  console.log('背景色:', bgColor, '是否蓝色:', isBlueBackground);
+                                  console.log('变换值:', transform, '是否平移:', isTranslated);
+                                  
+                                  // 如果两个指标都满足，则认为是开启状态
+                                  return isBlueBackground || isTranslated;
+                              }
+                              return false;
+                          }
+                      """);
+                      
+                      // 点击整个开关区域来切换状态
+                      if (roles.contains("zhihu-deepseek-sdsk")) {
+                          // 需要开启深度思考模式
+                          if (!isDeepThinkingEnabled) {
+                              outerContainer.click();
+                              Thread.sleep(1000);
+                              logInfo.sendTaskLog("已启动深度思考模式", userId, "知乎直答");
+                          } else {
+                              logInfo.sendTaskLog("深度思考模式已处于激活状态", userId, "知乎直答");
+                          }
+                      } else {
+                          // 需要关闭深度思考模式
+                          if (isDeepThinkingEnabled) {
+                              outerContainer.click();
+                              Thread.sleep(1000);
+                              logInfo.sendTaskLog("已关闭深度思考模式", userId, "知乎直答");
+                          } else {
+                              logInfo.sendTaskLog("深度思考模式已处于关闭状态", userId, "知乎直答");
+                          }
+                      }
+                  } else {
+                      logInfo.sendTaskLog("未找到深度思考按钮，可能知乎直答不支持此功能", userId, "知乎直答");
+                  }
+              } catch (Exception e) {
+                  logInfo.sendTaskLog("控制深度思考模式时出错: " + e.getMessage(), userId, "知乎直答");
+              }
+            
+            // 定位可编辑的 div 元素（保持原有的选择器）
+            Locator textArea = page.locator("div.notranslate.public-DraftEditor-content");
+            textArea.click();
+            Thread.sleep(1000);
+            textArea.fill(userPrompt);
+            logInfo.sendTaskLog("用户指令已自动输入完成", userId, "知乎直答");
+            Thread.sleep(1000);
+            
+            // 点击发送按钮（保持原有的选择器）
+            Locator sendButton = page.locator("div.css-175oi2r svg[fill='#ffffff'][width='20'][height='20']");
+            sendButton.click();
+            logInfo.sendTaskLog("指令已自动发送成功", userId, "知乎直答");
+            
+            // 创建定时截图线程
+            AtomicInteger i = new AtomicInteger(0);
+            ScheduledExecutorService screenshotExecutor = Executors.newSingleThreadScheduledExecutor();
+            
+            // 启动定时任务，每8秒执行一次截图，与豆包一致
+            ScheduledFuture<?> screenshotFuture = screenshotExecutor.scheduleAtFixedRate(() -> {
+                try {
+                    int currentCount = i.getAndIncrement(); // 获取当前值并自增
+                    logInfo.sendImgData(page, userId + "知乎直答执行过程截图"+currentCount, userId);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }, 0, 8, TimeUnit.SECONDS);
+            
+            logInfo.sendTaskLog("开启自动监听任务，持续监听知乎直答回答中", userId, "知乎直答");
+            
+            // 等待回复完成 - 使用zhiHuUtil中的方法等待回复
+            String responseText = zhiHuUtil.waitZHResponse(page, userId);
+            
+            // 关闭截图
+            screenshotFuture.cancel(false);
+            screenshotExecutor.shutdown();
+            
+            // 处理知乎直答的分享流程，获取分享后的内容
+            String[] shareResults = zhiHuUtil.handleZhihuShare(page, userId, uploadUrl);
+            String shareUrl = shareResults[0];
+            String shareImgUrl = shareResults[1];
+            String sharedContent = shareResults[2];
+            
+            // 使用分享后的内容作为最终结果
+            if (sharedContent != null && !sharedContent.trim().isEmpty()) {
+                responseText = sharedContent;
+            }
+            
+            logInfo.sendTaskLog("执行完成", userId, "知乎直答");
+            logInfo.sendResData(responseText, userId, "知乎直答", "RETURN_ZH_RES", shareUrl, shareImgUrl);
+            
+            // 保存数据库
+            userInfoRequest.setDraftContent(responseText);
+            userInfoRequest.setAiName("知乎直答");
+            userInfoRequest.setShareUrl(shareUrl);
+            userInfoRequest.setShareImgUrl(shareImgUrl);
+            RestUtils.post(url + "/saveDraftContent", userInfoRequest);
+            
+            return responseText;
+        } catch (Exception e) {
+            e.printStackTrace();
+            String errorMsg = "知乎直答处理出错: " + e.getMessage();
+            logInfo.sendTaskLog(errorMsg, userInfoRequest.getUserId(), "知乎直答");
+            logInfo.sendResData(errorMsg, userInfoRequest.getUserId(), "知乎直答", "RETURN_ZH_RES", "", "");
+        }
+        return "获取内容失败";
     }
 
 

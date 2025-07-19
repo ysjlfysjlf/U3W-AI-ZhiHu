@@ -161,7 +161,11 @@ from wc_chrome_hotlink wck left join sys_user u on wck.user_name = u.user_name
           <if test="userId !=22">
               and wpd.user_name = #{userId}
           </if>
-        group by wpd.task_id
+        group by wpd.task_id,
+                 u.nick_name,
+                 u.avatar,
+                 wpd.user_prompt,
+                 wpd.create_time
          order by wpd.create_time desc
     </select>
 

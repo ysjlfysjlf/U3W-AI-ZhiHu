@@ -56,6 +56,37 @@ public class ScreenshotUtil {
 
     }
 
+    /**
+     * 截取特定元素的截图并上传
+     * @param locator 要截图的元素定位器
+     * @param imageName 图片名称
+     * @return 上传后的URL
+     */
+    public String screenshotElementAndUpload(com.microsoft.playwright.Locator locator, String imageName) {
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+        try {
+            // 截取元素截图
+            locator.screenshot(new com.microsoft.playwright.Locator.ScreenshotOptions()
+                    .setPath(Paths.get(imageName))
+            );
+
+            System.out.println("当前时间：" + simpleDateFormat.format(new Date()));
+
+            // 上传截图
+            String response = uploadFile(uploadUrl, imageName);
+            JSONObject jsonObject = JSONObject.parseObject(response);
+
+            String url = jsonObject.get("url")+"";
+            Files.delete(Paths.get(imageName));
+            return url;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return "";
+    }
+
     public static String uploadFile(String serverUrl, String filePath) throws IOException {
         System.out.println("原文件："+filePath);
         OkHttpClient client = new OkHttpClient();

@@ -148,6 +148,16 @@ public class WebSocketClientService {
                                 }
                             }).start();
                         }
+                        // 处理包含"zhihu"的消息
+                        if(message.contains("zhihu")){
+                            new Thread(() -> {
+                                try {
+                                    aigcController.startZH(userInfoRequest);
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }).start();
+                        }
                     }
 
                     // 处理包含"AI评分"的消息
@@ -358,6 +368,36 @@ public class WebSocketClientService {
                         new Thread(() -> {
                             try {
                                 browserController.getDeepSeekQrCode(userInfoRequest.getUserId());
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }).start();
+                    }
+
+                    // 处理检查知乎直答登录状态的消息
+                    if (message.contains("PLAY_CHECK_ZHIHU_LOGIN")) {
+                        new Thread(() -> {
+                            try {
+                                // 调用检查知乎直答登录状态的方法
+                                String checkLogin = browserController.checkZhihuLogin(userInfoRequest.getUserId());
+                                userInfoRequest.setStatus(checkLogin);
+                                userInfoRequest.setType("RETURN_ZHIHU_STATUS");
+                                sendMessage(JSON.toJSONString(userInfoRequest));
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                // 发送错误状态
+                                userInfoRequest.setStatus("false");
+                                userInfoRequest.setType("RETURN_ZHIHU_STATUS");
+                                sendMessage(JSON.toJSONString(userInfoRequest));
+                            }
+                        }).start();
+                    }
+
+                    // 处理获取知乎直答二维码的消息
+                    if(message.contains("PLAY_GET_ZHIHU_QRCODE")){
+                        new Thread(() -> {
+                            try {
+                                browserController.getZhihuQrCode(userInfoRequest.getUserId());
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }

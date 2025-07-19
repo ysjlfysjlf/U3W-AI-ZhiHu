@@ -439,16 +439,19 @@ export default {
       aiLoginStatus: {
         doubao: false,
         deepseek: false,
+        zhihu: false,
         minimax: false,
       },
       accounts: {
-        doubao: "",
-        deepseek: "",
+        doubao: '',
+        deepseek: '',
+        zhihu: '',
         minimax: "",
       },
       isClick: {
         doubao: false,
         deepseek: false,
+        zhihu: false,
         minimax: false,
       },
       aiLoginDialogVisible: false,
@@ -460,6 +463,7 @@ export default {
       isLoading: {
         doubao: true,
         deepseek: true,
+        zhihu: true,
         minimax: true,
       },
     };
@@ -485,8 +489,9 @@ export default {
     },
     getAiLoginTitle() {
       const titles = {
-        doubao: "豆包登录",
-        deepseek: "DeepSeek登录",
+        doubao: '豆包登录',
+        deepseek: 'DeepSeek登录',
+        zhihu: '知乎直答登录',
         minimax: "MiniMax登录",
       };
       return titles[this.currentAiType] || "登录";
@@ -529,6 +534,17 @@ export default {
             userId: this.userId,
             corpId: this.corpId,
           });
+          this.sendMessage({
+            type: 'PLAY_CHECK_ZHIHU_LOGIN',
+            userId: this.userId,
+            corpId: this.corpId
+          })
+          // 检查通义千问登录状态
+          // this.sendMessage({
+          //   type: 'PLAY_CHECK_QW_LOGIN',
+          //   userId: this.userId,
+          //   corpId: this.corpId
+          // });
         }, 1000);
       });
     },
@@ -623,19 +639,26 @@ export default {
       this.getQrCode(type);
     },
     getQrCode(type) {
-      this.qrCodeUrl = "";
-      if (type == "doubao") {
+      this.qrCodeUrl = ''
+      if(type == 'zhihu'){
         this.sendMessage({
-          type: "PLAY_GET_DB_QRCODE",
+          type: 'PLAY_GET_ZHIHU_QRCODE',
           userId: this.userId,
-          corpId: this.corpId,
+          corpId: this.corpId
+        })
+      }
+      if(type == 'doubao'){
+        this.sendMessage({
+          type: 'PLAY_GET_DB_QRCODE',
+          userId: this.userId,
+          corpId: this.corpId
         });
       }
-      if (type == "deepseek") {
+      if(type == 'deepseek'){
         this.sendMessage({
-          type: "PLAY_GET_DEEPSEEK_QRCODE",
+          type: 'PLAY_GET_DEEPSEEK_QRCODE',
           userId: this.userId,
-          corpId: this.corpId,
+          corpId: this.corpId
         });
       }
       if (type == "minimax") {
@@ -652,16 +675,18 @@ export default {
     },
     getPlatformIcon(type) {
       const icons = {
-        doubao: require("@/assets/logo/doubao.png"),
-        deepseek: require("@/assets/logo/Deepseek.png"),
+        doubao: require('@/assets/logo/doubao.png'),
+        deepseek: require('@/assets/logo/Deepseek.png'),
+        zhihu: require('@/assets/logo/zhihu.png'),
         minimax: require("@/assets/logo/MiniMax.png"),
       };
       return icons[type] || "";
     },
     getPlatformName(type) {
       const names = {
-        doubao: "豆包",
-        deepseek: "DeepSeek",
+        doubao: '豆包',
+        deepseek: 'DeepSeek',
+        zhihu: '知乎直答',
         minimax: "MiniMax",
       };
       return names[type] || "";
@@ -696,11 +721,10 @@ export default {
       const datastr = data;
       const dataObj = JSON.parse(datastr);
 
-      if (
-        datastr.includes("RETURN_PC_DB_QRURL") ||
-        datastr.includes("RETURN_PC_DEEPSEEK_QRURL") ||
-        datastr.includes("RETURN_PC_MAX_QRURL")
-      ) {
+     if (datastr.includes("RETURN_PC_DB_QRURL") ||
+       datastr.includes("RETURN_PC_DEEPSEEK_QRURL") ||
+       datastr.includes("RETURN_PC_MAX_QRURL")||
+       datastr.includes("RETURN_PC_ZHIHU_QRURL")) {
         this.qrCodeUrl = dataObj.url;
       } else if (datastr.includes("RETURN_DB_STATUS") && dataObj.status != "") {
         if (!datastr.includes("false")) {
@@ -725,6 +749,15 @@ export default {
           this.isClick.deepseek = true;
           this.isLoading.deepseek = false;
         }
+      }else if(datastr.includes("RETURN_ZHIHU_STATUS") && dataObj.status != ''){
+       if(!datastr.includes("false")){
+        this.aiLoginDialogVisible = false;
+        this.aiLoginStatus.zhihu = true;
+        this.accounts.zhihu = dataObj.status;
+        this.isLoading.zhihu = false;
+      } else{
+        this.isClick.zhihu = true;
+        this.isLoading.zhihu = false;
       } else if (
         datastr.includes("RETURN_MAX_STATUS") &&
         dataObj.status != ""
@@ -740,6 +773,7 @@ export default {
           this.isLoading.minimax = false;
         }
       }
+       }
     },
 
     closeWebSocket() {
@@ -987,7 +1021,7 @@ export default {
   }
 
   .el-button--text {
-    color: #409eff;
+    color: #409EFF;
     font-size: 14px;
 
     &:hover {
@@ -1098,7 +1132,7 @@ export default {
 }
 
 .qr-code {
-  background: #ffffff;
+  background: #FFFFFF;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);

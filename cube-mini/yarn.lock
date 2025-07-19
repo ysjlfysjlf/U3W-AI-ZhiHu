@@ -2,3 +2,22 @@
 # yarn lockfile v1
 
 
+"@dcloudio/uni-ui@^1.5.7":
+  "integrity" "sha512-9gnNzr11iG06s97A3WBplqwcAOua7vG7j70hEoPlGoUgDA7at7wo84nkuyXycQaveAHSqNhbCGHVsUUtQcGkJQ=="
+  "resolved" "https://registry.npmjs.org/@dcloudio/uni-ui/-/uni-ui-1.5.8.tgz"
+  "version" "1.5.8"
+
+"@vue/composition-api@^1.7.2":
+  "integrity" "sha512-M8jm9J/laYrYT02665HkZ5l2fWTK4dcVg3BsDHm/pfz+MjDYwX+9FUaZyGwEyXEDonQYRCo0H7aLgdklcIELjw=="
+  "resolved" "https://registry.npmjs.org/@vue/composition-api/-/composition-api-1.7.2.tgz"
+  "version" "1.7.2"
+
+"marked@^15.0.12":
+  "integrity" "sha512-8dD6FusOQSrpv9Z1rdNMdlSgQOIP880DHqnohobOmYLElGEqAL/JvxvuxZO16r4HtjTlfPRDC1hbvxC9dPN2nA=="
+  "resolved" "https://registry.npmjs.org/marked/-/marked-15.0.12.tgz"
+  "version" "15.0.12"
+
+"vue@>= 2.5 < 2.7":
+  "integrity" "sha512-x2284lgYvjOMj3Za7kqzRcUSxBboHqtgRE2zlos1qWaOye5yUmHn42LB1250NJBLRwEcdrB0JRwyPTEPhfQjiQ=="
+  "resolved" "https://registry.npmjs.org/vue/-/vue-2.6.14.tgz"
+  "version" "2.6.14"

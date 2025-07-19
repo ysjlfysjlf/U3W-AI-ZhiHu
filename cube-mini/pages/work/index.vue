@@ -46,7 +46,7 @@
 										<text class="ai-name" :class="[!isAiLoginEnabled(ai) ? 'name-disabled' : '']">{{
 											ai.name }}</text>
 										<text
-											v-if="!isAiLoginEnabled(ai) && !isLoading.yuanbao && !isLoading.doubao && !isLoading.agent"
+											v-if="!isAiLoginEnabled(ai) && !isLoading.yuanbao && !isLoading.doubao && !isLoading.agent && !isLoading.deepseek && !isLoading.zhihu"
 											class="login-required">需登录</text>
 										<text v-if="isAiInLoading(ai)" class="loading-text">检查中...</text>
 									</view>
@@ -368,6 +368,19 @@
             progressLogs: [],
             isExpanded: true
           },
+          {
+            name: '知乎直答',
+            avatar: '../../static/images/zhihu.png',
+            capabilities: [{
+              label: '深度思考',
+              value: 'deep_thinking'
+            }],
+            selectedCapabilities: ['deep_thinking'],
+            enabled: true,
+            status: 'idle',
+            progressLogs: [],
+            isExpanded: true
+          },
 					{
 						name: '豆包',
 						avatar: 'https://u3w.com/chatfile/%E8%B1%86%E5%8C%85.png',
@@ -428,17 +441,20 @@
 				aiLoginStatus: {
 					doubao: false,
           deepseek: false, // DeepSeek初始为未登录状态
-		          mini: false,
+					zhihu: false,// 知乎直答初始为未登录状态
+          mini: false,
 				},
 				accounts: {
 					doubao: '',
           deepseek: '',
-		  mini: '',
+					zhihu: '',
+		      mini: '',
 				},
 				isLoading: {
 					doubao: true,
           deepseek: true, // DeepSeek初始为加载状态
-		  mini: true
+					zhihu: true,
+          mini: true
 				}
 			};
 		},
@@ -452,7 +468,7 @@
 				const hasAvailableAI = this.aiList.some(ai => ai.enabled && this.isAiLoginEnabled(ai));
 
 				// 检查是否正在加载AI状态（如果正在加载，禁用发送按钮）
-				const isCheckingStatus = this.isLoading.doubao || this.isLoading.deepseek || this.isLoading.mini;;
+				const isCheckingStatus = this.isLoading.doubao || this.isLoading.deepseek|| this.isLoading.zhihu || this.isLoading.mini;
 
 				return hasInput && hasAvailableAI && !isCheckingStatus;
 			},
@@ -645,6 +661,12 @@
               this.userInfoReq.roles = this.userInfoReq.roles + 'ds-lwss,';
             }
           }
+					if (ai.name === '知乎直答') {
+						this.userInfoReq.roles = this.userInfoReq.roles + 'zj-zhihu,';
+						if (ai.selectedCapabilities.includes("deep_thinking")) {
+							this.userInfoReq.roles = this.userInfoReq.roles + 'zj-zhihu-sdsk,';
+						}
+					}
 					if (ai.name === '豆包') {
 						this.userInfoReq.roles = this.userInfoReq.roles + 'zj-db,';
 						if (ai.selectedCapabilities.includes("deep_thinking")) {
@@ -709,7 +731,8 @@
 			this.isConnecting = true;
 
 			// 使用PC端的WebSocket连接方式
-			const wsUrl = `${process.env.VUE_APP_WS_API || 'wss://u3w.com/cubeServer/websocket?clientId='}mypc-${this.userId}`;
+
+			const wsUrl = `${process.env.VUE_APP_WS_API || 'ws://127.0.0.1:8081/websocket?clientId='}mypc-${this.userId}`;
 			// const wsUrl = `${process.env.VUE_APP_WS_API || 'ws://127.0.0.1:8081/websocket?clientId='}mypc-${this.userId}`;
 			console.log('WebSocket URL:', wsUrl);
 
@@ -1012,6 +1035,30 @@
           // 强制更新UI
           this.$forceUpdate();
         }
+				// 处理知乎直答登录状态
+				else if (datastr.includes("RETURN_ZHIHU_STATUS")) {
+					console.log("收到知乎直答登录状态消息:", dataObj);
+					this.isLoading.zhihu = false;
+					if (dataObj.status && dataObj.status !== 'false' && dataObj.status !== '') {
+						this.aiLoginStatus.zhihu = true;
+						this.accounts.zhihu = dataObj.status;
+						console.log("知乎直答登录成功，账号:", dataObj.status);
+
+						// 查找知乎直答AI实例
+						const zhihuAI = this.aiList.find(ai => ai.name === '知乎直答');
+
+					} else {
+						this.aiLoginStatus.zhihu = false;
+						this.accounts.zhihu = '';
+						console.log("知乎直答未登录");
+
+						// 如果未登录，确保知乎直答被禁用
+						const zhihuAI = this.aiList.find(ai => ai.name === '知乎直答');
+
+					}
+					// 强制更新UI
+					this.$forceUpdate();
+				}
 			},
 
 			handleAIResult(dataObj) {
@@ -1023,6 +1070,11 @@
 						console.log('收到消息:', dataObj);
 						targetAI = this.enabledAIs.find(ai => ai.name === '豆包');
 						break;
+          case 'RETURN_ZH_RES':
+            console.log('收到知乎直答消息:', dataObj);
+            targetAI = this.enabledAIs.find(ai => ai.name === '知乎直答');
+            // 如果找不到知乎直答，可能是因为它不在enabledAIs中，尝试添加它
+            break;
           case 'RETURN_DEEPSEEK_RES':
             console.log('收到DeepSeek消息:', dataObj);
             targetAI = this.enabledAIs.find(ai => ai.name === 'DeepSeek');
@@ -1856,6 +1908,19 @@
             progressLogs: [],
             isExpanded: true
           },
+          {
+            name: '知乎直答',
+            avatar: '../../static/images/zhihu.png',
+            capabilities: [{
+              label: '深度思考',
+              value: 'deep_thinking'
+            }],
+            selectedCapabilities: ['deep_thinking'],
+            enabled: true,
+            status: 'idle',
+            progressLogs: [],
+            isExpanded: true
+          },
 					{
 						name: '豆包',
 						avatar: 'https://u3w.com/chatfile/%E8%B1%86%E5%8C%85.png',
@@ -1920,6 +1985,13 @@
           userId: this.userId,
           corpId: this.corpId
         });
+
+				// 检查知乎直答登录状态
+				this.sendWebSocketMessage({
+					type: 'PLAY_CHECK_ZHIHU_LOGIN',
+					userId: this.userId,
+					corpId: this.corpId
+				});
 		// 检查MiniMax登录状态
 		this.sendWebSocketMessage({
 		  type: "PLAY_CHECK_MAX_LOGIN",
@@ -1955,21 +2027,24 @@
 				this.isLoading = {
 					doubao: true,
           deepseek: true,
-		  mini: true
+					zhihu: true,
+		      mini: true
 				};
 
 				// 重置登录状态
 				this.aiLoginStatus = {
 					doubao: false,
           deepseek: false,
-		  mini: false
+					zhihu: false,
+		      mini: false
 				};
 
 				// 重置账户信息
 				this.accounts = {
 					doubao: '',
           deepseek: '',
-		  mini: ''
+					zhihu: '',
+		      mini: ''
 				};
 
 				// 显示刷新提示
@@ -1997,6 +2072,8 @@
 						return this.aiLoginStatus.doubao; // 豆包登录状态
           case 'DeepSeek':
             return this.aiLoginStatus.deepseek; // 使用实际的DeepSeek登录状态
+					case '知乎直答':
+						return this.aiLoginStatus.zhihu; // 知乎直答登录状态
 			case "MiniMax Chat":
 			  return this.aiLoginStatus.mini; // MiniMax Chat登录状态
 					default:
@@ -2011,6 +2088,8 @@
 						return this.isLoading.doubao;
           case 'DeepSeek':
             return this.isLoading.deepseek; // 使用实际的DeepSeek加载状态
+					case '知乎直答':
+						return this.isLoading.zhihu; // 使用实际的知乎直答加载状态
 			case "MiniMax Chat":
 			  return this.isLoading.mini;
 					default:

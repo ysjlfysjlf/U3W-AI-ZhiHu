@@ -7,7 +7,7 @@ ruoyi:
   # 版权年份
   copyrightYear: 2024
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
-  profile: F:/AGI/chatfile/
+  profile: D:/U3W-AIProject/AGI/chatfile/
   # 获取ip地址开关
   addressEnabled: false
   # 验证码类型 math 数字计算 char 字符验证
@@ -73,7 +73,7 @@ spring:
     # 数据库索引
     database: 0
     # 密码
-    password: <你的数据库密码>
+    password: qwe#123
     # 连接超时时间
     timeout: 10s
     lettuce:
@@ -153,7 +153,7 @@ datazone:
 geth:
   mainAddress:
   mainPrivateKey:
-  httpUrl: https://localhost:8081/mini/wxlogin  #https://您的服务器地址:端口/以太坊账户API路径
+  httpUrl: http://localhost:8081/mini/wxlogin  #https://您的服务器地址:端口/以太坊账户API路径
 
 TencentDoc:
   url: https://docs.qq.com/oauth/v2/token
