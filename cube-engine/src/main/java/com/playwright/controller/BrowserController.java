@@ -98,20 +98,16 @@ public class BrowserController {
 
             // 等待页面加载完成
             page.waitForLoadState(LoadState.NETWORKIDLE);
-
+            
             // 额外等待页面渲染完成
             Thread.sleep(3000);
 
             // 检查是否存在登录/注册按钮
             Locator loginButton = page.locator("text=登录/注册");
-            if (loginButton.count() > 0 && loginButton.isVisible()) {
+            if (loginButton.count() > 0) {
                 // 存在登录/注册按钮，说明未登录
                 return "false";
             } else {
-//                // 不存在登录/注册按钮，说明已登录，跳转到设置页面获取用户名
-//                page.navigate("https://www.zhihu.com/settings/account");
-//                page.waitForLoadState(LoadState.NETWORKIDLE);
-//                Thread.sleep(2000);
 
                 // 提取的用户名
                 Locator usernameElement = page.locator("//*[@id=\"root\"]/div/div[4]/div[2]/div/div[2]/div[1]/div[3]/div/div/div/div/div[2]/div");
@@ -142,11 +138,11 @@ public String getZhihuQrCode(@Parameter(description = "用户唯一标识") @Req
     try (BrowserContext context = browserUtil.createPersistentBrowserContext(false, userId, "zhihu")) {
         Page page = context.newPage();
         page.navigate("https://zhida.zhihu.com/");
-
+        
         // 点击登录/注册按钮
         page.locator("text=登录/注册").click();
 
-
+        
         Thread.sleep(3000);
         String url = screenshotUtil.screenshotAndUpload(page, "checkZhihuLogin.png");
 
@@ -155,16 +151,16 @@ public String getZhihuQrCode(@Parameter(description = "用户唯一标识") @Req
         jsonObject.put("userId", userId);
         jsonObject.put("type", "RETURN_PC_ZHIHU_QRURL");
         webSocketClientService.sendMessage(jsonObject.toJSONString());
-
+        
         // 等待用户扫码登录成功
         Locator loginSuccess = page.locator("//*[@id=\"root\"]/div/div[4]/div[2]/div/div[2]/div[1]/div[3]/div/div/div/div/div[2]/div");
-        loginSuccess.waitFor(new Locator.WaitForOptions().setTimeout(15000)); // 减少到15秒
-        Thread.sleep(500); // 减少到0.5秒
-
+        loginSuccess.waitFor(new Locator.WaitForOptions().setTimeout(60000));
+        Thread.sleep(500);
+        
         // 跳转到主页面检查登录状态
         page.navigate("https://zhida.zhihu.com/");
-        Thread.sleep(500); // 减少到0.5秒
-
+        Thread.sleep(3000);
+        
         // 检查用户信息
         Locator userElement = page.locator("//*[@id=\"root\"]/div/div[4]/div[2]/div/div[2]/div[1]/div[3]/div/div/div/div/div[2]/div");
         if (userElement.count() > 0) {
@@ -201,7 +197,7 @@ public String getZhihuQrCode(@Parameter(description = "用户唯一标识") @Req
             page.navigate("https://yuanbao.tencent.com/chat/naQivTmsDa");
             Locator phone = page.locator("//*[@id=\"hunyuan-bot\"]/div[3]/div/div/div[3]/div/div[2]/div/div[2]/div[2]/p");
             phone.waitFor(new Locator.WaitForOptions().setTimeout(60000));
-                if(phone.count()>0){
+                if(phone.count()>0){              
                     String phoneText = phone.textContent();
                     if(phoneText.equals("未登录")){
                         return "false";

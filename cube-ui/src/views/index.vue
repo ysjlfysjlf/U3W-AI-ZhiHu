@@ -440,13 +440,13 @@ export default {
         doubao: false,
         deepseek: false,
         zhihu: false,
-        minimax: false,
+         minimax: false
       },
       accounts: {
         doubao: '',
         deepseek: '',
         zhihu: '',
-        minimax: "",
+        minimax: ""
       },
       isClick: {
         doubao: false,
@@ -465,8 +465,8 @@ export default {
         deepseek: true,
         zhihu: true,
         minimax: true,
-      },
-    };
+      }
+    }
   },
   // 计算当前月份的签到日期
   computed: {
@@ -649,9 +649,9 @@ export default {
       }
       if(type == 'doubao'){
         this.sendMessage({
-          type: 'PLAY_GET_DB_QRCODE',
+          type: "PLAY_GET_DB_QRCODE",
           userId: this.userId,
-          corpId: this.corpId
+          corpId: this.corpId,
         });
       }
       if(type == 'deepseek'){
@@ -688,6 +688,7 @@ export default {
         deepseek: 'DeepSeek',
         zhihu: '知乎直答',
         minimax: "MiniMax",
+
       };
       return names[type] || "";
     },
@@ -721,10 +722,10 @@ export default {
       const datastr = data;
       const dataObj = JSON.parse(datastr);
 
-     if (datastr.includes("RETURN_PC_DB_QRURL") ||
-       datastr.includes("RETURN_PC_DEEPSEEK_QRURL") ||
-       datastr.includes("RETURN_PC_MAX_QRURL")||
-       datastr.includes("RETURN_PC_ZHIHU_QRURL")) {
+     if (datastr.includes("RETURN_PC_DB_QRURL")||
+     datastr.includes("RETURN_PC_DEEPSEEK_QRURL")||
+     datastr.includes("RETURN_PC_ZHIHU_QRURL")||
+    datastr.includes("RETURN_PC_MAX_QRURL")) {
         this.qrCodeUrl = dataObj.url;
       } else if (datastr.includes("RETURN_DB_STATUS") && dataObj.status != "") {
         if (!datastr.includes("false")) {
@@ -758,7 +759,8 @@ export default {
       } else{
         this.isClick.zhihu = true;
         this.isLoading.zhihu = false;
-      } else if (
+      }
+    }else if (
         datastr.includes("RETURN_MAX_STATUS") &&
         dataObj.status != ""
       ) {
@@ -773,7 +775,6 @@ export default {
           this.isLoading.minimax = false;
         }
       }
-       }
     },
 
     closeWebSocket() {
@@ -1021,7 +1022,7 @@ export default {
   }
 
   .el-button--text {
-    color: #409EFF;
+    color: #409eff;
     font-size: 14px;
 
     &:hover {
@@ -1132,7 +1133,7 @@ export default {
 }
 
 .qr-code {
-  background: #FFFFFF;
+  background: #ffffff;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);

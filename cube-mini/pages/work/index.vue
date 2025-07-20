@@ -441,20 +441,20 @@
 				aiLoginStatus: {
 					doubao: false,
           deepseek: false, // DeepSeek初始为未登录状态
-					zhihu: false,// 知乎直答初始为未登录状态
-          mini: false,
+					zhihu: false, // 知乎直答初始为未登录状态
+					mini: false,
 				},
 				accounts: {
 					doubao: '',
           deepseek: '',
 					zhihu: '',
-		      mini: '',
+					mini: ''
 				},
 				isLoading: {
 					doubao: true,
           deepseek: true, // DeepSeek初始为加载状态
 					zhihu: true,
-          mini: true
+					mini: true
 				}
 			};
 		},
@@ -468,7 +468,7 @@
 				const hasAvailableAI = this.aiList.some(ai => ai.enabled && this.isAiLoginEnabled(ai));
 
 				// 检查是否正在加载AI状态（如果正在加载，禁用发送按钮）
-				const isCheckingStatus = this.isLoading.doubao || this.isLoading.deepseek|| this.isLoading.zhihu || this.isLoading.mini;
+				const isCheckingStatus = this.isLoading.doubao || this.isLoading.deepseek|| this.isLoading.zhihu|| this.isLoading.mini;
 
 				return hasInput && hasAvailableAI && !isCheckingStatus;
 			},
@@ -1059,6 +1059,20 @@
 					// 强制更新UI
 					this.$forceUpdate();
 				}
+				// 处理智能体登录状态
+				else if (datastr.includes("RETURN_AGENT_STATUS") && dataObj.status != '') {
+					this.isLoading.agent = false;
+					if (!datastr.includes("false")) {
+						this.aiLoginStatus.agent = true;
+						this.accounts.agent = dataObj.status;
+					} else {
+						this.aiLoginStatus.agent = false;
+						// 禁用相关AI
+						this.disableAIsByLoginStatus('agent');
+					}
+					// 更新AI启用状态
+					this.updateAiEnabledStatus();
+				}
 			},
 
 			handleAIResult(dataObj) {
@@ -1070,11 +1084,6 @@
 						console.log('收到消息:', dataObj);
 						targetAI = this.enabledAIs.find(ai => ai.name === '豆包');
 						break;
-          case 'RETURN_ZH_RES':
-            console.log('收到知乎直答消息:', dataObj);
-            targetAI = this.enabledAIs.find(ai => ai.name === '知乎直答');
-            // 如果找不到知乎直答，可能是因为它不在enabledAIs中，尝试添加它
-            break;
           case 'RETURN_DEEPSEEK_RES':
             console.log('收到DeepSeek消息:', dataObj);
             targetAI = this.enabledAIs.find(ai => ai.name === 'DeepSeek');
@@ -1104,6 +1113,11 @@
               this.enabledAIs.push(targetAI);
             }
             break;
+			case 'RETURN_ZH_RES':
+						console.log('收到知乎直答消息:', dataObj);
+						targetAI = this.enabledAIs.find(ai => ai.name === '知乎直答');
+						// 如果找不到知乎直答，可能是因为它不在enabledAIs中，尝试添加它
+						break;
 			case "RETURN_MAX_RES":
 			  console.log("收到消息:", dataObj);
 			  targetAI = this.enabledAIs.find((ai) => ai.name === "MiniMax Chat");
@@ -1655,10 +1669,10 @@
 
 
 				// 设置默认提示词
-				this.layoutPrompt = `请你对以下 HTML 内容进行排版优化，目标是用于微信公众号“草稿箱接口”的 content 字段，要求如下：
+				this.layoutPrompt = `请你对以下 HTML 内容进行排版优化，目标是用于微信公众号"草稿箱接口"的 content 字段，要求如下：
 
 1. 仅返回 <body> 内部可用的 HTML 内容片段（不要包含 <!DOCTYPE>、<html>、<head>、<meta>、<title> 等标签）。
-2. 所有样式必须以“内联 style”方式写入。
+2. 所有样式必须以"内联 style"方式写入。
 3. 保持结构清晰、视觉友好，适配公众号图文排版。
 4. 请直接输出代码，不要添加任何注释或额外说明。
 5. 不得使用 emoji 表情符号或小图标字符。
@@ -2028,7 +2042,7 @@
 					doubao: true,
           deepseek: true,
 					zhihu: true,
-		      mini: true
+					mini: true
 				};
 
 				// 重置登录状态
@@ -2036,7 +2050,7 @@
 					doubao: false,
           deepseek: false,
 					zhihu: false,
-		      mini: false
+					mini: false
 				};
 
 				// 重置账户信息
@@ -2044,7 +2058,7 @@
 					doubao: '',
           deepseek: '',
 					zhihu: '',
-		      mini: ''
+					 mini: ''
 				};
 
 				// 显示刷新提示
@@ -2074,8 +2088,8 @@
             return this.aiLoginStatus.deepseek; // 使用实际的DeepSeek登录状态
 					case '知乎直答':
 						return this.aiLoginStatus.zhihu; // 知乎直答登录状态
-			case "MiniMax Chat":
-			  return this.aiLoginStatus.mini; // MiniMax Chat登录状态
+						case "MiniMax Chat":
+			            return this.aiLoginStatus.mini; //
 					default:
 						return false;
 				}
@@ -2090,8 +2104,8 @@
             return this.isLoading.deepseek; // 使用实际的DeepSeek加载状态
 					case '知乎直答':
 						return this.isLoading.zhihu; // 使用实际的知乎直答加载状态
-			case "MiniMax Chat":
-			  return this.isLoading.mini;
+						case "MiniMax Chat":
+			         return this.isLoading.mini;
 					default:
 						return false;
 				}

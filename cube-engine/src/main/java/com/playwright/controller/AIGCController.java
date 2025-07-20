@@ -1242,23 +1242,33 @@ public class AIGCController {
     @PostMapping("/startZH")
     public String startZH(@io.swagger.v3.oas.annotations.parameters.RequestBody(description = "用户信息请求体", required = true,
         content = @Content(schema = @Schema(implementation = UserInfoRequest.class))) @RequestBody UserInfoRequest userInfoRequest) {
-        try (BrowserContext context = browserUtil.createPersistentBrowserContext(false, userInfoRequest.getUserId(), "zhihu")) {
-            // 初始化变量
-            String userId = userInfoRequest.getUserId();
-            String roles = userInfoRequest.getRoles();
-            String userPrompt = userInfoRequest.getUserPrompt();
-            
-            logInfo.sendTaskLog("知乎直答准备就绪，正在打开页面", userId, "知乎直答");
-            
-            // 初始化页面并导航到知乎直答搜索页面
-            Page page = context.newPage();
+    try (BrowserContext context = browserUtil.createPersistentBrowserContext(false, userInfoRequest.getUserId(), "zhihu")) {
+        // 初始化变量
+        String userId = userInfoRequest.getUserId();
+        String zhchatId = userInfoRequest.getZhChatId();
+        String roles = userInfoRequest.getRoles();
+        String userPrompt = userInfoRequest.getUserPrompt();
+        
+        logInfo.sendTaskLog("知乎直答准备就绪，正在打开页面", userId, "知乎直答");
+        
+        // 初始化页面并导航到知乎直答页面
+        Page page = context.newPage();
+        
+        // 根据是否有会话ID决定导航URL
+        if (zhchatId != null && !zhchatId.isEmpty()) {
+            // 如果有会话ID，导航到特定会话页面
+            page.navigate("https://zhida.zhihu.com/search/" + zhchatId);
+            logInfo.sendTaskLog("导航到知乎直答会话: " + zhchatId, userId, "知乎直答");
+        } else {
+            // 如果没有会话ID，导航到搜索页面
             page.navigate("https://zhida.zhihu.com/search");
-            
-            page.waitForLoadState(LoadState.LOAD);
-            Thread.sleep(500);
-            logInfo.sendTaskLog("知乎直答页面打开完成", userId, "知乎直答");
+            logInfo.sendTaskLog("导航到知乎直答搜索页面", userId, "知乎直答");
+        }
+        
+        page.waitForLoadState(LoadState.LOAD);
+        Thread.sleep(500);
+        logInfo.sendTaskLog("知乎直答页面打开完成", userId, "知乎直答");
 
-            
                          // 控制深度思考模式 - 根据外层背景色和内层transform值检测状态
               try {
                   // 定位外层容器 - 这是状态指示器的容器
@@ -1272,7 +1282,7 @@ public class AIGCController {
                               const outerXpath = '//*[@id="fullScreen"]/div[1]/div/div/div[2]/div/div/div[2]/div[1]/div[1]/div[2]';
                               const outerResult = document.evaluate(outerXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
                               const outer = outerResult.singleNodeValue;
-                              
+        
                               // 查找内层容器（transform变化的元素）
                               const innerXpath = '//*[@id="fullScreen"]/div[1]/div/div/div[2]/div/div/div[2]/div[1]/div[1]/div[2]/div';
                               const innerResult = document.evaluate(innerXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
@@ -1325,11 +1335,11 @@ public class AIGCController {
                       }
                   } else {
                       logInfo.sendTaskLog("未找到深度思考按钮，可能知乎直答不支持此功能", userId, "知乎直答");
-                  }
-              } catch (Exception e) {
+                }
+            } catch (Exception e) {
                   logInfo.sendTaskLog("控制深度思考模式时出错: " + e.getMessage(), userId, "知乎直答");
               }
-            
+        
             // 定位可编辑的 div 元素（保持原有的选择器）
             Locator textArea = page.locator("div.notranslate.public-DraftEditor-content");
             textArea.click();
@@ -1352,7 +1362,7 @@ public class AIGCController {
                 try {
                     int currentCount = i.getAndIncrement(); // 获取当前值并自增
                     logInfo.sendImgData(page, userId + "知乎直答执行过程截图"+currentCount, userId);
-                } catch (Exception e) {
+            } catch (Exception e) {
                     e.printStackTrace();
                 }
             }, 0, 8, TimeUnit.SECONDS);
@@ -1372,12 +1382,9 @@ public class AIGCController {
             String shareImgUrl = shareResults[1];
             String sharedContent = shareResults[2];
             
-            // 使用分享后的内容作为最终结果
-            if (sharedContent != null && !sharedContent.trim().isEmpty()) {
-                responseText = sharedContent;
-            }
-            
+            // 使用原始文本内容作为最终结果，而不是图片URL
             logInfo.sendTaskLog("执行完成", userId, "知乎直答");
+            logInfo.sendChatData(page, "/search/([^/?#]+)", userId, "RETURN_ZH_CHATID", 1);
             logInfo.sendResData(responseText, userId, "知乎直答", "RETURN_ZH_RES", shareUrl, shareImgUrl);
             
             // 保存数据库
@@ -1393,9 +1400,9 @@ public class AIGCController {
             String errorMsg = "知乎直答处理出错: " + e.getMessage();
             logInfo.sendTaskLog(errorMsg, userInfoRequest.getUserId(), "知乎直答");
             logInfo.sendResData(errorMsg, userInfoRequest.getUserId(), "知乎直答", "RETURN_ZH_RES", "", "");
-        }
-        return "获取内容失败";
     }
+        return "获取内容失败";
+}
 
 
 

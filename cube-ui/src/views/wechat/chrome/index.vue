@@ -503,6 +503,16 @@ export default {
       chatId: uuidv4(),
       expandedHistoryItems: {},
       userInfoReq: {
+        userPrompt: '',
+        userId: '',
+        corpId: '',
+        taskId: '',
+        roles: '',
+        toneChatId: '',
+        ybDsChatId: '',
+        dbChatId: '',
+        zhChatId: '',
+        isNewChat: true
         userPrompt: "",
         userId: "",
         corpId: "",
@@ -521,7 +531,7 @@ export default {
         params: {},
       },
       aiList: [
-        {
+        {     
           name: '知乎直答',
           avatar: require('../../../assets/ai/Zhihu.png'),
           capabilities: [
@@ -893,6 +903,8 @@ export default {
         this.userInfoReq.dbChatId = dataObj.chatId;
       } else if (dataObj.type === "RETURN_MAX_CHATID" && dataObj.chatId) {
         this.userInfoReq.maxChatId = dataObj.chatId;
+      } else if (dataObj.type === 'RETURN_ZH_CHATID' && dataObj.chatId) {
+        this.userInfoReq.zhChatId = dataObj.chatId;
       }
 
       // 处理进度日志消息
@@ -1212,9 +1224,10 @@ export default {
         this.results = historyData.results || [];
         // 恢复chatId
         this.chatId = item.chatId || this.chatId;
-        this.userInfoReq.toneChatId = item.toneChatId || "";
-        this.userInfoReq.ybDsChatId = item.ybDsChatId || "";
-        this.userInfoReq.dbChatId = item.dbChatId || "";
+        this.userInfoReq.toneChatId = item.toneChatId || '';
+        this.userInfoReq.ybDsChatId = item.ybDsChatId || '';
+        this.userInfoReq.dbChatId = item.dbChatId || '';
+        this.userInfoReq.zhChatId = item.zhChatId || '';
         this.userInfoReq.maxChatId = item.maxChatId || "";
         this.userInfoReq.isNewChat = false;
 
@@ -1246,6 +1259,7 @@ export default {
         toneChatId: this.userInfoReq.toneChatId,
         ybDsChatId: this.userInfoReq.ybDsChatId,
         dbChatId: this.userInfoReq.dbChatId,
+        zhChatId: this.userInfoReq.zhChatId,
         maxChatId: this.userInfoReq.maxChatId,
       };
 
@@ -1258,6 +1272,7 @@ export default {
           toneChatId: this.userInfoReq.toneChatId,
           ybDsChatId: this.userInfoReq.ybDsChatId,
           dbChatId: this.userInfoReq.dbChatId,
+          zhChatId: this.userInfoReq.zhChatId,
           maxChatId: this.userInfoReq.maxChatId,
         });
       } catch (error) {
@@ -1289,13 +1304,14 @@ export default {
         userPrompt: "",
         userId: this.userId,
         corpId: this.corpId,
-        taskId: "",
-        roles: "",
-        toneChatId: "",
-        ybDsChatId: "",
-        dbChatId: "",
+        taskId: '',
+        roles: '',
+        toneChatId: '',
+        ybDsChatId: '',
+        dbChatId: '',
+        zhChatId: '',
         maxChatId: "",
-        isNewChat: true,
+        isNewChat: true
       };
       // 重置AI列表为初始状态
       this.aiList = [
@@ -1315,8 +1331,8 @@ export default {
           name: 'DeepSeek',
           avatar: require('../../../assets/logo/Deepseek.png'),
           capabilities: [
-            { label: '深度思考', value: 'deep_thinking' },
-            { label: '联网搜索', value: 'web_search' }
+            { label: "深度思考", value: "deep_thinking" },
+            { label: "联网搜索", value: "web_search" },
           ],
           selectedCapabilities: ['deep_thinking', 'web_search'],
           enabled: true,
