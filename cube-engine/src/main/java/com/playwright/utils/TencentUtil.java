@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 腾讯智能体工具类
@@ -51,6 +52,95 @@ public class TencentUtil {
 
     @Autowired
     private ClipboardLockManager clipboardLockManager;
+
+    /**
+     * 创建安全的截图任务
+     * @param page 页面对象
+     * @param userId 用户ID
+     * @param aiName AI名称
+     * @return 截图任务管理对象，包含停止方法
+     */
+    private ScreenshotTaskManager createSafeScreenshotTask(Page page, String userId, String aiName) {
+        AtomicInteger i = new AtomicInteger(0);
+        ScheduledExecutorService screenshotExecutor = Executors.newSingleThreadScheduledExecutor();
+        AtomicBoolean shouldStopScreenshot = new AtomicBoolean(false);
+
+        ScheduledFuture<?> screenshotFuture = screenshotExecutor.scheduleAtFixedRate(() -> {
+            try {
+                // 检查是否应该停止截图
+                if (shouldStopScreenshot.get()) {
+                    return;
+                }
+                
+                // 检查页面是否已关闭，如果页面关闭则退出
+                if (page == null || page.isClosed()) {
+                    System.out.println("页面已关闭，停止" + aiName + "截图任务");
+                    shouldStopScreenshot.set(true);
+                    return;
+                }
+                
+                // 检查浏览器上下文状态
+                try {
+                    page.context().browser();
+                } catch (Exception e) {
+                    System.out.println("浏览器上下文已关闭，停止" + aiName + "截图任务");
+                    shouldStopScreenshot.set(true);
+                    return;
+                }
+                
+                int currentCount = i.getAndIncrement();
+                logInfo.sendImgData(page, userId + aiName + "执行过程截图" + currentCount, userId);
+            } catch (com.microsoft.playwright.PlaywrightException e) {
+                // 处理Playwright特定异常
+                if (e.getMessage().contains("Object doesn't exist") || 
+                    e.getMessage().contains("worker@") ||
+                    e.getMessage().contains("Target closed") ||
+                    e.getMessage().contains("Page closed")) {
+                    System.out.println("页面或浏览器已关闭，停止" + aiName + "截图任务: " + e.getMessage());
+                    shouldStopScreenshot.set(true);
+                    return;
+                }
+                System.out.println(aiName + "截图任务Playwright异常: " + e.getMessage());
+            } catch (Exception e) {
+                System.out.println(aiName + "截图任务异常: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }, 0, 7, TimeUnit.SECONDS);
+
+        return new ScreenshotTaskManager(screenshotFuture, screenshotExecutor, shouldStopScreenshot);
+    }
+
+    /**
+     * 截图任务管理类
+     */
+    private static class ScreenshotTaskManager {
+        private final ScheduledFuture<?> screenshotFuture;
+        private final ScheduledExecutorService screenshotExecutor;
+        private final AtomicBoolean shouldStopScreenshot;
+
+        public ScreenshotTaskManager(ScheduledFuture<?> screenshotFuture, 
+                                   ScheduledExecutorService screenshotExecutor, 
+                                   AtomicBoolean shouldStopScreenshot) {
+            this.screenshotFuture = screenshotFuture;
+            this.screenshotExecutor = screenshotExecutor;
+            this.shouldStopScreenshot = shouldStopScreenshot;
+        }
+
+        public void stop() {
+            shouldStopScreenshot.set(true);
+            screenshotFuture.cancel(false);
+            screenshotExecutor.shutdown();
+            
+            try {
+                if (!screenshotExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    screenshotExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                screenshotExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
 
     /**
      * 处理智能体AI交互流程
@@ -323,22 +413,8 @@ public class TencentUtil {
 
     public String saveDraftData(Page page,UserInfoRequest userInfoRequest,String aiName,String userId,int initialCount) throws InterruptedException {
 
-        // 创建定时截图线程
-        AtomicInteger i = new AtomicInteger(0);
-        ScheduledExecutorService screenshotExecutor = Executors.newSingleThreadScheduledExecutor();
-        // 启动定时任务，每5秒执行一次截图
-        ScheduledFuture<?> screenshotFuture = screenshotExecutor.scheduleAtFixedRate(() -> {
-            try {
-                if (Thread.currentThread().isInterrupted()) {
-                    System.out.println("任务已结束，跳过截图");
-                    return;
-                }
-                int currentCount = i.getAndIncrement(); // 获取当前值并自增
-                logInfo.sendImgData(page, userId + "元宝执行过程截图"+currentCount, userId);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }, 0, 7, TimeUnit.SECONDS);
+        // 创建安全的截图任务
+        ScreenshotTaskManager screenshotTask = createSafeScreenshotTask(page, userId, "元宝");
         try {
             String agentName = "";
             if (aiName.contains("hunyuan")) {
@@ -354,9 +430,8 @@ public class TencentUtil {
             //等待html片段获取
             String copiedText = waitHtmlDom(page,agentName,userId);
 
-            //关闭截图
-            screenshotFuture.cancel(false);
-            screenshotExecutor.shutdown();
+            // 停止截图任务
+            screenshotTask.stop();
             AtomicReference<String> shareUrlRef = new AtomicReference<>();
 
             clipboardLockManager.runWithClipboardLock(() -> {

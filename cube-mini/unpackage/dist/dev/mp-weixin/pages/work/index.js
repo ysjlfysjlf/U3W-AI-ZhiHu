@@ -115,7 +115,8 @@ var render = function () {
           !_vm.isLoading.doubao &&
           !_vm.isLoading.agent &&
           !_vm.isLoading.deepseek &&
-          !_vm.isLoading.zhihu
+          !_vm.isLoading.zhihu &&
+          !_vm.isLoading.mini
         var m4 = _vm.isAiInLoading(ai)
         var m5 = ai.enabled && _vm.isAiLoginEnabled(ai)
         var m6 = !_vm.isAiLoginEnabled(ai) || _vm.isAiInLoading(ai)
@@ -310,6 +311,7 @@ var _default = {
         toneChatId: '',
         ybDsChatId: '',
         dbChatId: '',
+        zhChatId: '',
         isNewChat: true
       },
       jsonRpcReqest: {
@@ -364,6 +366,21 @@ var _default = {
         status: 'idle',
         progressLogs: [],
         isExpanded: true
+      }, {
+        name: "MiniMax Chat",
+        avatar: "https://yzg.meooota.com/profile/MiniMax%20Chat.png",
+        capabilities: [{
+          label: "深度思考",
+          value: "deep_thinking"
+        }, {
+          label: "联网搜索",
+          value: "web_search"
+        }],
+        selectedCapabilities: ["deep_thinking", "web_search"],
+        enabled: true,
+        status: "idle",
+        progressLogs: [],
+        isExpanded: true
       }],
       // 输入和任务状态
       promptInput: '',
@@ -404,19 +421,22 @@ var _default = {
         doubao: false,
         deepseek: false,
         // DeepSeek初始为未登录状态
-        zhihu: false // 知乎直答初始为未登录状态
+        zhihu: false,
+        // 知乎直答初始为未登录状态
+        mini: false
       },
-
       accounts: {
         doubao: '',
         deepseek: '',
-        zhihu: ''
+        zhihu: '',
+        mini: ''
       },
       isLoading: {
         doubao: true,
         deepseek: true,
         // DeepSeek初始为加载状态
-        zhihu: true
+        zhihu: true,
+        mini: true
       }
     };
   },
@@ -432,7 +452,7 @@ var _default = {
       });
 
       // 检查是否正在加载AI状态（如果正在加载，禁用发送按钮）
-      var isCheckingStatus = this.isLoading.doubao || this.isLoading.deepseek || this.isLoading.zhihu;
+      var isCheckingStatus = this.isLoading.doubao || this.isLoading.deepseek || this.isLoading.zhihu || this.isLoading.mini;
       return hasInput && hasAvailableAI && !isCheckingStatus;
     },
     canScore: function canScore() {
@@ -615,13 +635,22 @@ var _default = {
         if (ai.name === '知乎直答') {
           _this3.userInfoReq.roles = _this3.userInfoReq.roles + 'zhihu,';
           if (ai.selectedCapabilities.includes("deep_thinking")) {
-            _this3.userInfoReq.roles = _this3.userInfoReq.roles + 'zhihu-deepseek-sdsk,';
+            _this3.userInfoReq.roles = _this3.userInfoReq.roles + 'zhihu-sdsk,';
           }
         }
         if (ai.name === '豆包') {
           _this3.userInfoReq.roles = _this3.userInfoReq.roles + 'zj-db,';
           if (ai.selectedCapabilities.includes("deep_thinking")) {
             _this3.userInfoReq.roles = _this3.userInfoReq.roles + 'zj-db-sdsk,';
+          }
+        }
+        if (ai.name === "MiniMax Chat") {
+          _this3.userInfoReq.roles = _this3.userInfoReq.roles + "mini-max-agent,";
+          if (ai.selectedCapabilities.includes("deep_thinking")) {
+            _this3.userInfoReq.roles = _this3.userInfoReq.roles + "max-sdsk,";
+          }
+          if (ai.selectedCapabilities.includes("web_search")) {
+            _this3.userInfoReq.roles = _this3.userInfoReq.roles + "max-lwss,";
           }
         }
       });
@@ -820,6 +849,10 @@ var _default = {
         // 处理chatId消息
         if (dataObj.type === 'RETURN_DB_CHATID' && dataObj.chatId) {
           this.userInfoReq.dbChatId = dataObj.chatId;
+        } else if (dataObj.type === "RETURN_MAX_CHATID" && dataObj.chatId) {
+          this.userInfoReq.maxChatId = dataObj.chatId;
+        } else if (dataObj.type === "RETURN_ZH_CHATID" && dataObj.chatId) {
+          this.userInfoReq.zhChatId = dataObj.chatId;
         }
 
         // 处理进度日志消息
@@ -922,6 +955,20 @@ var _default = {
         // 更新AI启用状态
         this.updateAiEnabledStatus();
       }
+      // 处理MiniMax Chat登录状态
+      else if (datastr.includes("RETURN_MAX_STATUS") && dataObj.status != "") {
+        this.isLoading.mini = false;
+        if (!datastr.includes("false")) {
+          this.aiLoginStatus.mini = true;
+          this.accounts.mini = dataObj.status;
+        } else {
+          this.aiLoginStatus.mini = false;
+          // 禁用相关AI
+          this.disableAIsByLoginStatus("mini");
+        }
+        // 更新AI启用状态
+        this.updateAiEnabledStatus();
+      }
       // 处理DeepSeek登录状态
       else if (datastr.includes("RETURN_DEEPSEEK_STATUS")) {
         console.log("收到DeepSeek登录状态消息:", dataObj);
@@ -1006,6 +1053,29 @@ var _default = {
             return ai.name === 'DeepSeek';
           });
           // 如果找不到DeepSeek，可能是因为它不在enabledAIs中，尝试添加它
+          if (!targetAI) {
+            targetAI = {
+              name: 'DeepSeek',
+              avatar: 'https://communication.cn-nb1.rains3.com/Deepseek.png',
+              capabilities: [{
+                label: '深度思考',
+                value: 'deep_thinking'
+              }, {
+                label: '联网搜索',
+                value: 'web_search'
+              }],
+              selectedCapabilities: ['deep_thinking', 'web_search'],
+              enabled: true,
+              status: 'running',
+              progressLogs: [{
+                content: 'DeepSeek响应已接收',
+                timestamp: new Date(),
+                isCompleted: true
+              }],
+              isExpanded: true
+            };
+            this.enabledAIs.push(targetAI);
+          }
           break;
         case 'RETURN_ZH_RES':
           console.log('收到知乎直答消息:', dataObj);
@@ -1013,6 +1083,12 @@ var _default = {
             return ai.name === '知乎直答';
           });
           // 如果找不到知乎直答，可能是因为它不在enabledAIs中，尝试添加它
+          break;
+        case "RETURN_MAX_RES":
+          console.log("收到消息:", dataObj);
+          targetAI = this.enabledAIs.find(function (ai) {
+            return ai.name === "MiniMax Chat";
+          });
           break;
       }
       if (targetAI) {
@@ -1321,6 +1397,8 @@ var _default = {
         this.userInfoReq.toneChatId = item.toneChatId || '';
         this.userInfoReq.ybDsChatId = item.ybDsChatId || '';
         this.userInfoReq.dbChatId = item.dbChatId || '';
+        this.userInfoReq.maxChatId = item.maxChatId || "";
+        this.userInfoReq.zhChatId = item.zhChatId || "";
         this.userInfoReq.isNewChat = false;
 
         // 不再根据AI登录状态更新AI启用状态，保持原有选择
@@ -1393,7 +1471,9 @@ var _default = {
                   chatId: _this9.chatId,
                   toneChatId: _this9.userInfoReq.toneChatId,
                   ybDsChatId: _this9.userInfoReq.ybDsChatId,
-                  dbChatId: _this9.userInfoReq.dbChatId
+                  dbChatId: _this9.userInfoReq.dbChatId,
+                  maxChatId: _this9.userInfoReq.maxChatId,
+                  zhChatId: _this9.userInfoReq.zhChatId
                 };
                 _context3.prev = 1;
                 _context3.next = 4;
@@ -1404,7 +1484,9 @@ var _default = {
                   chatId: _this9.chatId,
                   toneChatId: _this9.userInfoReq.toneChatId,
                   ybDsChatId: _this9.userInfoReq.ybDsChatId,
-                  dbChatId: _this9.userInfoReq.dbChatId
+                  dbChatId: _this9.userInfoReq.dbChatId,
+                  maxChatId: _this9.userInfoReq.maxChatId,
+                  zhChatId: _this9.userInfoReq.zhChatId
                 });
               case 4:
                 _context3.next = 10;
@@ -1802,6 +1884,8 @@ var _default = {
         toneChatId: '',
         ybDsChatId: '',
         dbChatId: '',
+        maxChatId: '',
+        zhChatId: '',
         isNewChat: true
       };
       // 重置AI列表为初始状态
@@ -1842,6 +1926,21 @@ var _default = {
         selectedCapabilities: ['deep_thinking'],
         enabled: true,
         status: 'idle',
+        progressLogs: [],
+        isExpanded: true
+      }, {
+        name: "MiniMax Chat",
+        avatar: "https://yzg.meooota.com/profile/MiniMax%20Chat.png",
+        capabilities: [{
+          label: "深度思考",
+          value: "deep_thinking"
+        }, {
+          label: "联网搜索",
+          value: "web_search"
+        }],
+        selectedCapabilities: ["deep_thinking", "web_search"],
+        enabled: true,
+        status: "idle",
         progressLogs: [],
         isExpanded: true
       }];
@@ -1886,6 +1985,12 @@ var _default = {
         userId: this.userId,
         corpId: this.corpId
       });
+      // 检查MiniMax登录状态
+      this.sendWebSocketMessage({
+        type: "PLAY_CHECK_MAX_LOGIN",
+        userId: this.userId,
+        corpId: this.corpId
+      });
     },
     getPlatformIcon: function getPlatformIcon(type) {
       var icons = {
@@ -1909,21 +2014,24 @@ var _default = {
       this.isLoading = {
         doubao: true,
         deepseek: true,
-        zhihu: true
+        zhihu: true,
+        mini: true
       };
 
       // 重置登录状态
       this.aiLoginStatus = {
         doubao: false,
         deepseek: false,
-        zhihu: false
+        zhihu: false,
+        mini: false
       };
 
       // 重置账户信息
       this.accounts = {
         doubao: '',
         deepseek: '',
-        zhihu: ''
+        zhihu: '',
+        mini: ''
       };
 
       // 显示刷新提示
@@ -1955,6 +2063,9 @@ var _default = {
         case '知乎直答':
           return this.aiLoginStatus.zhihu;
         // 知乎直答登录状态
+        case "MiniMax Chat":
+          return this.aiLoginStatus.mini;
+        //
         default:
           return false;
       }
@@ -1970,6 +2081,8 @@ var _default = {
         case '知乎直答':
           return this.isLoading.zhihu;
         // 使用实际的知乎直答加载状态
+        case "MiniMax Chat":
+          return this.isLoading.mini;
         default:
           return false;
       }

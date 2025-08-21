@@ -446,7 +446,7 @@ export default {
         doubao: '',
         deepseek: '',
         zhihu: '',
-        minimax: ""
+        minimax: ''
       },
       isClick: {
         doubao: false,

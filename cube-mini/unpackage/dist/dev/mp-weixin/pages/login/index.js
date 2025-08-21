@@ -173,7 +173,7 @@ var _default = {
       globalConfig: getApp().globalData.config,
       wxLoginForm: {
         appId: "wxdab374167aaa8648",
-        appSecret: "67f2d1ae3c874694c4f37ddd41605168",
+        appSecret: "12ac0a7df145d18cdf3c76dc8ec75862",
         code: "",
         encryptedIv: "",
         encryptedData: "",

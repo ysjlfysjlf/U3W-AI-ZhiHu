@@ -254,6 +254,13 @@ var _default = {
         title: '知乎直答',
         description: '知乎原生AI助手，擅长深度思考和逻辑推理',
         type: 'zhihu'
+      }, {
+        name: 'MiniMax Chat',
+        avatar: 'https://yzg.meooota.com/profile/MiniMax%20Chat.png',
+        icon: 'https://yzg.meooota.com/profile/MiniMax%20Chat.png',
+        title: 'MiniMax Chat',
+        description: 'MiniMax ChatAI助手，提供专业、严谨的解答。',
+        type: 'mini'
       }],
       advantages: [
         // {

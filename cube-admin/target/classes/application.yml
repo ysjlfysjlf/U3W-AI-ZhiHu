@@ -7,7 +7,7 @@ ruoyi:
   # 版权年份
   copyrightYear: 2024
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
-  profile: D:/U3W-AIProject/AGI/chatfile/
+  profile: D:/U3W-AIProject/AGI/chatfile
   # 获取ip地址开关
   addressEnabled: false
   # 验证码类型 math 数字计算 char 字符验证
@@ -139,11 +139,11 @@ wechat:
 
 # 此处替换为你自己的服务号秘钥
 office:
-  appId:
-  appSecret:
+  appId: 
+  appSecret: 
 upload:
 # 上传文件路径
-  url: http://localhost:8081/profile/
+  url: http://127.0.0.1:8081/profile/
 
 #数据智能专区SDK
 datazone:
@@ -153,7 +153,7 @@ datazone:
 geth:
   mainAddress:
   mainPrivateKey:
-  httpUrl: http://localhost:8081/mini/wxlogin  #https://您的服务器地址:端口/以太坊账户API路径
+  httpUrl: http://127.0.0.1:8081/mini/wxlogin  #https://您的服务器地址:端口/以太坊账户API路径
 
 TencentDoc:
   url: https://docs.qq.com/oauth/v2/token

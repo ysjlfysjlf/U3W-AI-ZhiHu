@@ -78,7 +78,7 @@
         wx.uploadFile({
           filePath: e.detail.avatarUrl,
           name: 'file',
-          url: baseUrl + "/common/upload",
+          url: 'https://ys.meooota.com/api/common/upload',
           success: (res) => {
             // 拿到一个服务器地址，永久地址
             // JSON 解析，将JSON字符串解析为JSON对象

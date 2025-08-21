@@ -46,7 +46,7 @@
 										<text class="ai-name" :class="[!isAiLoginEnabled(ai) ? 'name-disabled' : '']">{{
 											ai.name }}</text>
 										<text
-											v-if="!isAiLoginEnabled(ai) && !isLoading.yuanbao && !isLoading.doubao && !isLoading.agent && !isLoading.deepseek && !isLoading.zhihu"
+											v-if="!isAiLoginEnabled(ai) && !isLoading.yuanbao && !isLoading.doubao && !isLoading.agent && !isLoading.deepseek && !isLoading.zhihu && !isLoading.mini"
 											class="login-required">需登录</text>
 										<text v-if="isAiInLoading(ai)" class="loading-text">检查中...</text>
 									</view>
@@ -333,6 +333,7 @@
 					toneChatId: '',
 					ybDsChatId: '',
 					dbChatId: '',
+					zhChatId: '',
 					isNewChat: true
 				},
 				jsonRpcReqest: {
@@ -393,6 +394,20 @@
 						status: 'idle',
 						progressLogs: [],
 						isExpanded: true
+					},
+					{
+					  name: "MiniMax Chat",
+					  avatar:
+					    "https://yzg.meooota.com/profile/MiniMax%20Chat.png",
+					  capabilities: [
+					    { label: "深度思考", value: "deep_thinking" },
+					    { label: "联网搜索", value: "web_search" },
+					  ],
+					  selectedCapabilities: ["deep_thinking", "web_search"],
+					  enabled: true,
+					  status: "idle",
+					  progressLogs: [],
+					  isExpanded: true,
 					}
 				],
 
@@ -662,9 +677,9 @@
             }
           }
 					if (ai.name === '知乎直答') {
-						this.userInfoReq.roles = this.userInfoReq.roles + 'zj-zhihu,';
+						this.userInfoReq.roles = this.userInfoReq.roles + 'zhihu,';
 						if (ai.selectedCapabilities.includes("deep_thinking")) {
-							this.userInfoReq.roles = this.userInfoReq.roles + 'zj-zhihu-sdsk,';
+							this.userInfoReq.roles = this.userInfoReq.roles + 'zhihu-sdsk,';
 						}
 					}
 					if (ai.name === '豆包') {
@@ -897,8 +912,10 @@
 					if (dataObj.type === 'RETURN_DB_CHATID' && dataObj.chatId) {
 						this.userInfoReq.dbChatId = dataObj.chatId;
 					}else if (dataObj.type === "RETURN_MAX_CHATID" && dataObj.chatId) {
-          this.userInfoReq.maxChatId = dataObj.chatId;
-        }
+					this.userInfoReq.maxChatId = dataObj.chatId;
+					}else if (dataObj.type === "RETURN_ZH_CHATID" && dataObj.chatId) {
+					this.userInfoReq.zhChatId = dataObj.chatId;
+					}
 
 					// 处理进度日志消息
 					if (dataObj.type === 'RETURN_PC_TASK_LOG' && dataObj.aiName) {
@@ -1428,6 +1445,7 @@
 					this.userInfoReq.ybDsChatId = item.ybDsChatId || '';
 					this.userInfoReq.dbChatId = item.dbChatId || '';
 					this.userInfoReq.maxChatId = item.maxChatId || "";
+					this.userInfoReq.zhChatId = item.zhChatId || "";
 					this.userInfoReq.isNewChat = false;
 
 					// 不再根据AI登录状态更新AI启用状态，保持原有选择
@@ -1478,6 +1496,7 @@
 					ybDsChatId: this.userInfoReq.ybDsChatId,
 					dbChatId: this.userInfoReq.dbChatId,
 					maxChatId: this.userInfoReq.maxChatId,
+					zhChatId: this.userInfoReq.zhChatId,
 				};
 
 				try {
@@ -1490,6 +1509,7 @@
 						ybDsChatId: this.userInfoReq.ybDsChatId,
 						dbChatId: this.userInfoReq.dbChatId,
 						maxChatId: this.userInfoReq.maxChatId,
+						zhChatId: this.userInfoReq.zhChatId,
 					});
 				} catch (error) {
 					console.error('保存历史记录失败:', error);
@@ -1901,6 +1921,7 @@
 					ybDsChatId: '',
 					dbChatId: '',
 					maxChatId: '',
+					zhChatId: '',
 					isNewChat: true
 				};
 				// 重置AI列表为初始状态

@@ -27,6 +27,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -97,6 +98,94 @@ public class AIGCController {
     @Value("${cube.uploadurl}")
     private String uploadUrl;
 
+    /**
+     * 创建安全的截图任务
+     * @param page 页面对象
+     * @param userId 用户ID
+     * @param aiName AI名称
+     * @return 截图任务管理对象，包含停止方法
+     */
+    private ScreenshotTaskManager createSafeScreenshotTask(Page page, String userId, String aiName) {
+        AtomicInteger i = new AtomicInteger(0);
+        ScheduledExecutorService screenshotExecutor = Executors.newSingleThreadScheduledExecutor();
+        AtomicBoolean shouldStopScreenshot = new AtomicBoolean(false);
+
+        ScheduledFuture<?> screenshotFuture = screenshotExecutor.scheduleAtFixedRate(() -> {
+            try {
+                // 检查是否应该停止截图
+                if (shouldStopScreenshot.get()) {
+                    return;
+                }
+                
+                // 检查页面是否已关闭，如果页面关闭则退出
+                if (page == null || page.isClosed()) {
+                    System.out.println("页面已关闭，停止" + aiName + "截图任务");
+                    shouldStopScreenshot.set(true);
+                    return;
+                }
+                
+                // 检查浏览器上下文状态
+                try {
+                    page.context().browser();
+                } catch (Exception e) {
+                    System.out.println("浏览器上下文已关闭，停止" + aiName + "截图任务");
+                    shouldStopScreenshot.set(true);
+                    return;
+                }
+                
+                int currentCount = i.getAndIncrement();
+                logInfo.sendImgData(page, userId + aiName + "执行过程截图" + currentCount, userId);
+            } catch (com.microsoft.playwright.PlaywrightException e) {
+                // 处理Playwright特定异常
+                if (e.getMessage().contains("Object doesn't exist") || 
+                    e.getMessage().contains("worker@") ||
+                    e.getMessage().contains("Target closed") ||
+                    e.getMessage().contains("Page closed")) {
+                    System.out.println("页面或浏览器已关闭，停止" + aiName + "截图任务: " + e.getMessage());
+                    shouldStopScreenshot.set(true);
+                    return;
+                }
+                System.out.println(aiName + "截图任务Playwright异常: " + e.getMessage());
+            } catch (Exception e) {
+                System.out.println(aiName + "截图任务异常: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }, 0, 8, TimeUnit.SECONDS);
+
+        return new ScreenshotTaskManager(screenshotFuture, screenshotExecutor, shouldStopScreenshot);
+    }
+
+    /**
+     * 截图任务管理类
+     */
+    private static class ScreenshotTaskManager {
+        private final ScheduledFuture<?> screenshotFuture;
+        private final ScheduledExecutorService screenshotExecutor;
+        private final AtomicBoolean shouldStopScreenshot;
+
+        public ScreenshotTaskManager(ScheduledFuture<?> screenshotFuture, 
+                                   ScheduledExecutorService screenshotExecutor, 
+                                   AtomicBoolean shouldStopScreenshot) {
+            this.screenshotFuture = screenshotFuture;
+            this.screenshotExecutor = screenshotExecutor;
+            this.shouldStopScreenshot = shouldStopScreenshot;
+        }
+
+        public void stop() {
+            shouldStopScreenshot.set(true);
+            screenshotFuture.cancel(false);
+            screenshotExecutor.shutdown();
+            
+            try {
+                if (!screenshotExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    screenshotExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                screenshotExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
 
     /**
      * 处理多AI代理的请求
@@ -405,13 +494,48 @@ public class AIGCController {
             // 创建定时截图线程
             AtomicInteger i = new AtomicInteger(0);
             ScheduledExecutorService screenshotExecutor = Executors.newSingleThreadScheduledExecutor();
+            AtomicBoolean shouldStopScreenshot = new AtomicBoolean(false);
+            
             // 启动定时任务，每5秒执行一次截图
             ScheduledFuture<?> screenshotFuture = screenshotExecutor.scheduleAtFixedRate(() -> {
                 try {
+                    // 检查是否应该停止截图
+                    if (shouldStopScreenshot.get()) {
+                        return;
+                    }
+                    
+                    // 检查页面是否已关闭，如果页面关闭则退出
+                    if (page == null || page.isClosed()) {
+                        System.out.println("页面已关闭，停止MiniMax截图任务");
+                        shouldStopScreenshot.set(true);
+                        return;
+                    }
+                    
+                    // 检查浏览器上下文状态
+                    try {
+                        page.context().browser();
+                    } catch (Exception e) {
+                        System.out.println("浏览器上下文已关闭，停止MiniMax截图任务");
+                        shouldStopScreenshot.set(true);
+                        return;
+                    }
+                    
                     int currentCount = i.getAndIncrement(); // 获取当前值并自增
                     logInfo.sendImgData(page, userId + "MiniMax执行过程截图"+currentCount, userId);
 
+                } catch (com.microsoft.playwright.PlaywrightException e) {
+                    // 处理Playwright特定异常
+                    if (e.getMessage().contains("Object doesn't exist") || 
+                        e.getMessage().contains("worker@") ||
+                        e.getMessage().contains("Target closed") ||
+                        e.getMessage().contains("Page closed")) {
+                        System.out.println("页面或浏览器已关闭，停止MiniMax截图任务: " + e.getMessage());
+                        shouldStopScreenshot.set(true);
+                        return;
+                    }
+                    System.out.println("MiniMax截图任务Playwright异常: " + e.getMessage());
                 } catch (Exception e) {
+                    System.out.println("MiniMax截图任务异常: " + e.getMessage());
                     e.printStackTrace();
                 }
             }, 0, 8, TimeUnit.SECONDS);
@@ -419,10 +543,21 @@ public class AIGCController {
             logInfo.sendTaskLog( "开启自动监听任务，持续监听MiniMax回答中",userId,"MiniMax Chat");
             //等待html片段获取完成
             String copiedText =  miniMaxUtil.waitMiniMaxHtmlDom(page,userId,"MiniMax Chat");
-            //关闭截图
+            
+            // 停止截图任务
+            shouldStopScreenshot.set(true);
             screenshotFuture.cancel(false);
             screenshotExecutor.shutdown();
-
+            
+            // 等待截图任务完全停止
+            try {
+                if (!screenshotExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    screenshotExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                screenshotExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
 
             AtomicReference<String> shareUrlRef = new AtomicReference<>();
 
@@ -568,12 +703,47 @@ public class AIGCController {
             // 创建定时截图线程
             AtomicInteger i = new AtomicInteger(0);
             ScheduledExecutorService screenshotExecutor = Executors.newSingleThreadScheduledExecutor();
+            AtomicBoolean shouldStopScreenshot = new AtomicBoolean(false);
+            
             // 启动定时任务，每5秒执行一次截图
             ScheduledFuture<?> screenshotFuture = screenshotExecutor.scheduleAtFixedRate(() -> {
                 try {
+                    // 检查是否应该停止截图
+                    if (shouldStopScreenshot.get()) {
+                        return;
+                    }
+                    
+                    // 检查页面是否已关闭，如果页面关闭则退出
+                    if (page == null || page.isClosed()) {
+                        System.out.println("页面已关闭，停止豆包截图任务");
+                        shouldStopScreenshot.set(true);
+                        return;
+                    }
+                    
+                    // 检查浏览器上下文状态
+                    try {
+                        page.context().browser();
+                    } catch (Exception e) {
+                        System.out.println("浏览器上下文已关闭，停止豆包截图任务");
+                        shouldStopScreenshot.set(true);
+                        return;
+                    }
+                    
                     int currentCount = i.getAndIncrement(); // 获取当前值并自增
                     logInfo.sendImgData(page, userId + "豆包执行过程截图"+currentCount, userId);
+                } catch (com.microsoft.playwright.PlaywrightException e) {
+                    // 处理Playwright特定异常
+                    if (e.getMessage().contains("Object doesn't exist") || 
+                        e.getMessage().contains("worker@") ||
+                        e.getMessage().contains("Target closed") ||
+                        e.getMessage().contains("Page closed")) {
+                        System.out.println("页面或浏览器已关闭，停止豆包截图任务: " + e.getMessage());
+                        shouldStopScreenshot.set(true);
+                        return;
+                    }
+                    System.out.println("豆包截图任务Playwright异常: " + e.getMessage());
                 } catch (Exception e) {
+                    System.out.println("豆包截图任务异常: " + e.getMessage());
                     e.printStackTrace();
                 }
             }, 0, 8, TimeUnit.SECONDS);
@@ -583,9 +753,21 @@ public class AIGCController {
 //            String copiedText =  douBaoUtil.waitAndClickDBCopyButton(page,userId,roles);
             //等待html片段获取完成
             String copiedText =  douBaoUtil.waitDBHtmlDom(page,userId,"豆包");
-            //关闭截图
+            
+            // 停止截图任务
+            shouldStopScreenshot.set(true);
             screenshotFuture.cancel(false);
             screenshotExecutor.shutdown();
+            
+            // 等待截图任务完全停止
+            try {
+                if (!screenshotExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    screenshotExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                screenshotExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
 
             boolean isRight;
 
@@ -657,6 +839,171 @@ public class AIGCController {
     }
 
 
+    /**
+     * 处理知乎直答的请求
+     * @param userInfoRequest 包含用户ID、角色、提示信息等
+     * @return 知乎直答生成的内容
+     */
+    @Operation(summary = "启动知乎直答AI生成", description = "调用知乎直答AI平台生成内容并抓取结果")
+    @ApiResponse(responseCode = "200", description = "处理成功", content = @Content(mediaType = "application/json"))
+    @PostMapping("/startZH")
+    public String startZH(@io.swagger.v3.oas.annotations.parameters.RequestBody(description = "用户信息请求体", required = true,
+            content = @Content(schema = @Schema(implementation = UserInfoRequest.class))) @RequestBody UserInfoRequest userInfoRequest) {
+        try (BrowserContext context = browserUtil.createPersistentBrowserContext(false, userInfoRequest.getUserId(), "zhihu")) {
+            // 初始化变量
+            String userId = userInfoRequest.getUserId();
+            String zhChatId = userInfoRequest.getZhChatId();
+            String roles = userInfoRequest.getRoles();
+            String userPrompt = userInfoRequest.getUserPrompt();
+            logInfo.sendTaskLog("知乎直答准备就绪，正在打开页面", userId, "知乎直答");
+
+            // 初始化页面并导航到知乎直答指定页面
+            Page page = context.newPage();
+            if (zhChatId != null && !zhChatId.isEmpty()) {
+                // 如果有会话ID，导航到特定会话页面
+                page.navigate("https://zhida.zhihu.com/search/" + zhChatId);
+                logInfo.sendTaskLog("已恢复页面到知乎直答会话"+zhChatId, userId, "知乎直答");
+            } else {
+                // 如果没有会话ID，导航到首页
+                page.navigate("https://zhida.zhihu.com/search");
+            }
+
+            page.waitForLoadState(LoadState.LOAD);
+            Thread.sleep(2000);
+            logInfo.sendTaskLog("知乎直答页面打开完成", userId, "知乎直答");
+            // 定位按钮
+            Locator deepThinkButton = page.locator("[data-testid='Button:deep_thinking_button']");
+
+            boolean isActiveForDT = true;
+            // 定位到开关滑块
+            Locator toggleSwitch = deepThinkButton.locator("div[style*='border-radius: 100px'] > div");
+            // 获取 transform 属性
+            String transform = toggleSwitch.getAttribute("style");
+            // 判断是否开启
+            isActiveForDT = transform != null && transform.contains("translateX(10px)");
+
+            if(!isActiveForDT && roles.contains("zhihu-sdsk")) {
+                Thread.sleep(1000);
+               deepThinkButton.click();
+               Thread.sleep(1000);
+               logInfo.sendTaskLog("已开启深度思考",userId,"知乎直答");
+            }
+            if (isActiveForDT && !roles.contains("zhihu-sdsk")){
+                Thread.sleep(1000);
+                deepThinkButton.click();
+                Thread.sleep(1000);
+                logInfo.sendTaskLog("已关闭深度思考",userId,"知乎直答");
+            }
+
+            // 定位可编辑的 div 元素
+            page.locator("div.notranslate.public-DraftEditor-content").click();
+            Thread.sleep(1000);
+            //输入用户指令
+            page.locator("div.notranslate.public-DraftEditor-content").fill(userPrompt);
+            logInfo.sendTaskLog("用户指令已自动输入完成", userId, "知乎直答");
+            Thread.sleep(1000);
+            // 点击发送按钮
+            page.locator("div.css-175oi2r svg[fill='#ffffff'][width='20'][height='20']").click();
+            logInfo.sendTaskLog("指令已自动发送成功", userId, "知乎直答");
+            Thread.sleep(1000);
+
+            // 创建定时截图线程
+            AtomicInteger i = new AtomicInteger(0);
+            ScheduledExecutorService screenshotExecutor = Executors.newSingleThreadScheduledExecutor();
+            AtomicBoolean shouldStopScreenshot = new AtomicBoolean(false);
+
+            // 启动定时任务，每8秒执行一次截图
+            ScheduledFuture<?> screenshotFuture = screenshotExecutor.scheduleAtFixedRate(() -> {
+                try {
+                    // 检查是否应该停止截图
+                    if (shouldStopScreenshot.get()) {
+                        return;
+                    }
+                    
+                    // 检查页面是否已关闭，如果页面关闭则退出
+                    if (page == null || page.isClosed()) {
+                        System.out.println("页面已关闭，停止截图任务");
+                        shouldStopScreenshot.set(true);
+                        return;
+                    }
+                    
+                    // 检查浏览器上下文状态
+                    try {
+                        page.context().browser();
+                    } catch (Exception e) {
+                        System.out.println("浏览器上下文已关闭，停止截图任务");
+                        shouldStopScreenshot.set(true);
+                        return;
+                    }
+                    
+                    int currentCount = i.getAndIncrement(); // 获取当前值并自增
+                    logInfo.sendImgData(page, userId + "知乎直答执行过程截图"+currentCount, userId);
+                } catch (com.microsoft.playwright.PlaywrightException e) {
+                    // 处理Playwright特定异常
+                    if (e.getMessage().contains("Object doesn't exist") || 
+                        e.getMessage().contains("worker@") ||
+                        e.getMessage().contains("Target closed") ||
+                        e.getMessage().contains("Page closed")) {
+                        System.out.println("页面或浏览器已关闭，停止截图任务: " + e.getMessage());
+                        shouldStopScreenshot.set(true);
+                        return;
+                    }
+                    System.out.println("截图任务Playwright异常: " + e.getMessage());
+                } catch (Exception e) {
+                    System.out.println("截图任务异常: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }, 0, 8, TimeUnit.SECONDS);
+
+            logInfo.sendTaskLog("开启自动监听任务，持续监听知乎直答回答中", userId, "知乎直答");
+
+            // 等待回复完成 - 使用zhiHuUtil中的方法等待回复
+            String responseText = zhiHuUtil.waitZHResponse(page, userId,"知乎直答");
+
+            // 停止截图任务
+            shouldStopScreenshot.set(true);
+            screenshotFuture.cancel(false);
+            screenshotExecutor.shutdown();
+            
+            // 等待截图任务完全停止
+            try {
+                if (!screenshotExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    screenshotExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                screenshotExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+
+            // 处理知乎直答的分享流程，获取分享后的内容
+            String[] shareResults = zhiHuUtil.handleZhihuShare(page, userId, uploadUrl);
+            String shareUrl = shareResults[0];
+            String shareImgUrl = shareResults[1];
+
+            // 返回执行结果
+            logInfo.sendTaskLog("执行完成", userId, "知乎直答");
+            //发送会话ID
+            logInfo.sendChatData(page, "/search/([^/?#]+)", userId, "RETURN_ZH_CHATID", 1);
+            logInfo.sendResData(responseText, userId, "知乎直答", "RETURN_ZH_RES", shareUrl, shareImgUrl);
+
+            // 保存数据库
+            userInfoRequest.setDraftContent(responseText);
+            userInfoRequest.setAiName("知乎直答");
+            userInfoRequest.setShareUrl(shareUrl);
+            userInfoRequest.setShareImgUrl(shareImgUrl);
+            RestUtils.post(url + "/saveDraftContent", userInfoRequest);
+
+            return responseText;
+        } catch (Exception e) {
+            e.printStackTrace();
+            String errorMsg = "知乎直答处理出错: " + e.getMessage();
+            logInfo.sendTaskLog(errorMsg, userInfoRequest.getUserId(), "知乎直答");
+            logInfo.sendResData(errorMsg, userInfoRequest.getUserId(), "知乎直答", "RETURN_ZH_RES", "", "");
+        }
+        return "获取内容失败";
+    }
+
+
     @Operation(summary = "豆包智能评分", description = "调用豆包平台对内容进行评分并返回评分结果")
     @ApiResponse(responseCode = "200", description = "处理成功", content = @Content(mediaType = "application/json"))
     @PostMapping("/startDBScore")
@@ -708,26 +1055,16 @@ public class AIGCController {
             Thread.sleep(500);
             page.locator("[data-testid='chat_input_input']").press("Enter");
 
-            // 创建定时截图线程
-            AtomicInteger i = new AtomicInteger(0);
-            ScheduledExecutorService screenshotExecutor = Executors.newSingleThreadScheduledExecutor();
-            // 启动定时任务，每5秒执行一次截图
-            ScheduledFuture<?> screenshotFuture = screenshotExecutor.scheduleAtFixedRate(() -> {
-                try {
-                    int currentCount = i.getAndIncrement(); // 获取当前值并自增
-                    logInfo.sendImgData(page, userId + "评分执行过程截图"+currentCount, userId);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }, 0, 9, TimeUnit.SECONDS);
+            // 创建安全的截图任务
+            ScreenshotTaskManager screenshotTask = createSafeScreenshotTask(page, userId, "评分");
 
             logInfo.sendTaskLog( "开启自动监听任务，持续监听评分结果",userId,"智能评分");
             // 等待复制按钮出现并点击
             String copiedText =  douBaoUtil.waitDBHtmlDom(page,userId,"智能评分");
 
-            //关闭截图
-            screenshotFuture.cancel(false);
-            screenshotExecutor.shutdown();
+            // 停止截图任务
+            screenshotTask.stop();
+            
             boolean isRight;
             Locator chatHis = page.locator("//*[@id=\"root\"]/div[1]/div/div[3]/div/main/div/div/div[2]/div/div[1]/div/div/div[2]/div[2]/div/div/div/div/div/div/div[1]/div/div/div[2]/div[1]/div/div");
             if(chatHis.count()>0){
@@ -735,9 +1072,6 @@ public class AIGCController {
             } else {
                 isRight = false;
             }
-            //关闭截图
-            screenshotFuture.cancel(false);
-            screenshotExecutor.shutdown();
 
             AtomicReference<String> shareUrlRef = new AtomicReference<>();
             clipboardLockManager.runWithClipboardLock(() -> {
@@ -846,26 +1180,15 @@ public class AIGCController {
             Thread.sleep(500);
             page.locator("[data-testid='chat_input_input']").press("Enter");
 
-            // 创建定时截图线程
-            AtomicInteger i = new AtomicInteger(0);
-            ScheduledExecutorService screenshotExecutor = Executors.newSingleThreadScheduledExecutor();
-            // 启动定时任务，每5秒执行一次截图
-            ScheduledFuture<?> screenshotFuture = screenshotExecutor.scheduleAtFixedRate(() -> {
-                try {
-                    int currentCount = i.getAndIncrement(); // 获取当前值并自增
-                    logInfo.sendImgData(page, userId + "智能排版执行过程截图"+currentCount, userId);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }, 0, 9, TimeUnit.SECONDS);
+            // 创建安全的截图任务
+            ScreenshotTaskManager screenshotTask = createSafeScreenshotTask(page, userId, "智能排版");
 
             logInfo.sendTaskLog( "开启自动监听任务，持续监听智能排版结果",userId,"智能排版");
             // 等待复制按钮出现并点击
             String copiedText =  douBaoUtil.waitPBCopy(page,userId,"智能排版");
 
-            //关闭截图
-            screenshotFuture.cancel(false);
-            screenshotExecutor.shutdown();
+            // 停止截图任务
+            screenshotTask.stop();
 
             logInfo.sendTaskLog( "执行完成",userId,"智能排版");
             logInfo.sendResData(copiedText,userId,"智能排版","RETURN_ZNPB_RES","","");
@@ -940,29 +1263,17 @@ public class AIGCController {
 //            }
             Thread.sleep(1000);
 
-
-
-            // 创建定时截图线程
-            AtomicInteger i = new AtomicInteger(0);
-            ScheduledExecutorService screenshotExecutor = Executors.newSingleThreadScheduledExecutor();
-            // 启动定时任务，每5秒执行一次截图
-            ScheduledFuture<?> screenshotFuture = screenshotExecutor.scheduleAtFixedRate(() -> {
-                try {
-                    int currentCount = i.getAndIncrement(); // 获取当前值并自增
-                    logInfo.sendImgData(page, userId + "通义千问执行过程截图"+currentCount, userId);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }, 0, 8, TimeUnit.SECONDS);
+            // 创建安全的截图任务
+            ScreenshotTaskManager screenshotTask = createSafeScreenshotTask(page, userId, "通义千问");
 
             logInfo.sendTaskLog( "开启自动监听任务，持续监听通义千问回答中",userId,"通义千问");
             // 等待复制按钮出现并点击
 //            String copiedText =  douBaoUtil.waitAndClickDBCopyButton(page,userId,roles);
             //等待html片段获取完成
             String copiedText =  qwenUtil.waitQWHtmlDom(page,userId);
-            //关闭截图
-            screenshotFuture.cancel(false);
-            screenshotExecutor.shutdown();
+            
+            // 停止截图任务
+            screenshotTask.stop();
 
 
             AtomicReference<String> shareUrlRef = new AtomicReference<>();
@@ -1044,41 +1355,8 @@ public class AIGCController {
             // 设置页面超时时间更长
             page.setDefaultTimeout(60000); // 60秒
 
-            // 创建定时截图线程
-            AtomicInteger i = new AtomicInteger(0);
-            ScheduledExecutorService screenshotExecutor = Executors.newSingleThreadScheduledExecutor();
-
-            // 启动定时任务，每6秒执行一次截图，添加错误处理和状态检查
-            ScheduledFuture<?> screenshotFuture = screenshotExecutor.scheduleAtFixedRate(() -> {
-                try {
-                    // 检查页面是否已关闭，避免对已关闭页面进行操作
-                    if (page.isClosed()) {
-                        return;
-                    }
-
-                    // 检查页面是否正在加载中，如果是则跳过本次截图
-                    try {
-                        boolean isLoading = (boolean) page.evaluate("() => document.readyState !== 'complete'");
-                        if (isLoading) {
-                            System.out.println("页面加载中，跳过截图");
-                            return;
-                        }
-                    } catch (Exception e) {
-                        // 忽略评估错误
-                    }
-
-                    int currentCount = i.getAndIncrement();
-                    try {
-                        // 使用更安全的截图方式
-                        logInfo.sendImgData(page, userId + "DeepSeek执行过程截图" + currentCount, userId);
-                    } catch (Exception e) {
-                        System.out.println("截图失败: " + e.getMessage());
-                        // 不打印完整堆栈，避免日志过多
-                    }
-                } catch (Exception e) {
-                    System.out.println("截图任务异常: " + e.getMessage());
-                }
-            }, 2000, 6000, TimeUnit.MILLISECONDS); // 延迟2秒开始，每6秒执行一次
+            // 创建安全的截图任务
+            ScreenshotTaskManager screenshotTask = createSafeScreenshotTask(page, userId, "DeepSeek");
 
             logInfo.sendTaskLog("开启自动监听任务，持续监听DeepSeek回答中", userId, "DeepSeek");
 
@@ -1111,18 +1389,8 @@ public class AIGCController {
                 }
             }
 
-            // 安全地关闭截图任务
-            try {
-                screenshotFuture.cancel(true); // 使用true尝试中断正在执行的任务
-                screenshotExecutor.shutdownNow(); // 立即关闭执行器
-
-                // 等待执行器完全关闭，但最多等待3秒
-                if (!screenshotExecutor.awaitTermination(3, TimeUnit.SECONDS)) {
-                    // 截图任务未能完全关闭
-                }
-            } catch (Exception e) {
-                // 关闭截图任务时出错
-            }
+            // 停止截图任务
+            screenshotTask.stop();
 
             // 如果获取内容失败，尝试从页面中提取任何可能的内容
             if (copiedText.startsWith("获取内容失败") || copiedText.isEmpty()) {
@@ -1230,180 +1498,5 @@ public class AIGCController {
             return "获取内容失败: " + e.getMessage();
         }
     }
-
-
-    /**
-     * 处理知乎直答的请求
-     * @param userInfoRequest 包含用户ID、角色、提示信息等
-     * @return 知乎直答生成的内容
-     */
-    @Operation(summary = "启动知乎直答AI生成", description = "调用知乎直答AI平台生成内容并抓取结果")
-    @ApiResponse(responseCode = "200", description = "处理成功", content = @Content(mediaType = "application/json"))
-    @PostMapping("/startZH")
-    public String startZH(@io.swagger.v3.oas.annotations.parameters.RequestBody(description = "用户信息请求体", required = true,
-        content = @Content(schema = @Schema(implementation = UserInfoRequest.class))) @RequestBody UserInfoRequest userInfoRequest) {
-    try (BrowserContext context = browserUtil.createPersistentBrowserContext(false, userInfoRequest.getUserId(), "zhihu")) {
-        // 初始化变量
-        String userId = userInfoRequest.getUserId();
-        String zhchatId = userInfoRequest.getZhChatId();
-        String roles = userInfoRequest.getRoles();
-        String userPrompt = userInfoRequest.getUserPrompt();
-        
-        logInfo.sendTaskLog("知乎直答准备就绪，正在打开页面", userId, "知乎直答");
-        
-        // 初始化页面并导航到知乎直答页面
-        Page page = context.newPage();
-        
-        // 根据是否有会话ID决定导航URL
-        if (zhchatId != null && !zhchatId.isEmpty()) {
-            // 如果有会话ID，导航到特定会话页面
-            page.navigate("https://zhida.zhihu.com/search/" + zhchatId);
-            logInfo.sendTaskLog("导航到知乎直答会话: " + zhchatId, userId, "知乎直答");
-        } else {
-            // 如果没有会话ID，导航到搜索页面
-            page.navigate("https://zhida.zhihu.com/search");
-            logInfo.sendTaskLog("导航到知乎直答搜索页面", userId, "知乎直答");
-        }
-        
-        page.waitForLoadState(LoadState.LOAD);
-        Thread.sleep(500);
-        logInfo.sendTaskLog("知乎直答页面打开完成", userId, "知乎直答");
-
-                         // 控制深度思考模式 - 根据外层背景色和内层transform值检测状态
-              try {
-                  // 定位外层容器 - 这是状态指示器的容器
-                  Locator outerContainer = page.locator("//*[@id=\"fullScreen\"]/div[1]/div/div/div[2]/div/div/div[2]/div[1]/div[1]/div[2]");
-                  
-                  if (outerContainer.count() > 0) {
-                      // 检测当前深度思考模式的状态 - 同时检查背景色和transform值
-                      Boolean isDeepThinkingEnabled = (Boolean) page.evaluate("""
-                          () => {
-                              // 查找外层容器（背景色变化的元素）
-                              const outerXpath = '//*[@id="fullScreen"]/div[1]/div/div/div[2]/div/div/div[2]/div[1]/div[1]/div[2]';
-                              const outerResult = document.evaluate(outerXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-                              const outer = outerResult.singleNodeValue;
-        
-                              // 查找内层容器（transform变化的元素）
-                              const innerXpath = '//*[@id="fullScreen"]/div[1]/div/div/div[2]/div/div/div[2]/div[1]/div[1]/div[2]/div';
-                              const innerResult = document.evaluate(innerXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-                              const inner = innerResult.singleNodeValue;
-                              
-                              if (outer && inner) {
-                                  // 获取外层背景色
-                                  const outerStyle = window.getComputedStyle(outer);
-                                  const bgColor = outerStyle.backgroundColor;
-                                  
-                                  // 获取内层transform值
-                                  const innerStyle = window.getComputedStyle(inner);
-                                  const transform = innerStyle.transform;
-                                  
-                                  // 判断状态：
-                                  // 1. 开启: 背景色接近rgb(90, 77, 248)且transform包含translateX(10px)
-                                  // 2. 关闭: 背景色接近rgb(196, 199, 206)且transform包含translateX(0px)
-                                  const isBlueBackground = bgColor.includes('90') && bgColor.includes('77') && bgColor.includes('248');
-                                  const isTranslated = transform.includes('matrix') && !transform.includes('matrix(1, 0, 0, 1, 0, 0)');
-                                  
-                                  console.log('背景色:', bgColor, '是否蓝色:', isBlueBackground);
-                                  console.log('变换值:', transform, '是否平移:', isTranslated);
-                                  
-                                  // 如果两个指标都满足，则认为是开启状态
-                                  return isBlueBackground || isTranslated;
-                              }
-                              return false;
-                          }
-                      """);
-                      
-                      // 点击整个开关区域来切换状态
-                      if (roles.contains("zhihu-deepseek-sdsk")) {
-                          // 需要开启深度思考模式
-                          if (!isDeepThinkingEnabled) {
-                              outerContainer.click();
-                              Thread.sleep(1000);
-                              logInfo.sendTaskLog("已启动深度思考模式", userId, "知乎直答");
-                          } else {
-                              logInfo.sendTaskLog("深度思考模式已处于激活状态", userId, "知乎直答");
-                          }
-                      } else {
-                          // 需要关闭深度思考模式
-                          if (isDeepThinkingEnabled) {
-                              outerContainer.click();
-                              Thread.sleep(1000);
-                              logInfo.sendTaskLog("已关闭深度思考模式", userId, "知乎直答");
-                          } else {
-                              logInfo.sendTaskLog("深度思考模式已处于关闭状态", userId, "知乎直答");
-                          }
-                      }
-                  } else {
-                      logInfo.sendTaskLog("未找到深度思考按钮，可能知乎直答不支持此功能", userId, "知乎直答");
-                }
-            } catch (Exception e) {
-                  logInfo.sendTaskLog("控制深度思考模式时出错: " + e.getMessage(), userId, "知乎直答");
-              }
-        
-            // 定位可编辑的 div 元素（保持原有的选择器）
-            Locator textArea = page.locator("div.notranslate.public-DraftEditor-content");
-            textArea.click();
-            Thread.sleep(1000);
-            textArea.fill(userPrompt);
-            logInfo.sendTaskLog("用户指令已自动输入完成", userId, "知乎直答");
-            Thread.sleep(1000);
-            
-            // 点击发送按钮（保持原有的选择器）
-            Locator sendButton = page.locator("div.css-175oi2r svg[fill='#ffffff'][width='20'][height='20']");
-            sendButton.click();
-            logInfo.sendTaskLog("指令已自动发送成功", userId, "知乎直答");
-            
-            // 创建定时截图线程
-            AtomicInteger i = new AtomicInteger(0);
-            ScheduledExecutorService screenshotExecutor = Executors.newSingleThreadScheduledExecutor();
-            
-            // 启动定时任务，每8秒执行一次截图，与豆包一致
-            ScheduledFuture<?> screenshotFuture = screenshotExecutor.scheduleAtFixedRate(() -> {
-                try {
-                    int currentCount = i.getAndIncrement(); // 获取当前值并自增
-                    logInfo.sendImgData(page, userId + "知乎直答执行过程截图"+currentCount, userId);
-            } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }, 0, 8, TimeUnit.SECONDS);
-            
-            logInfo.sendTaskLog("开启自动监听任务，持续监听知乎直答回答中", userId, "知乎直答");
-            
-            // 等待回复完成 - 使用zhiHuUtil中的方法等待回复
-            String responseText = zhiHuUtil.waitZHResponse(page, userId);
-            
-            // 关闭截图
-            screenshotFuture.cancel(false);
-            screenshotExecutor.shutdown();
-            
-            // 处理知乎直答的分享流程，获取分享后的内容
-            String[] shareResults = zhiHuUtil.handleZhihuShare(page, userId, uploadUrl);
-            String shareUrl = shareResults[0];
-            String shareImgUrl = shareResults[1];
-            String sharedContent = shareResults[2];
-            
-            // 使用原始文本内容作为最终结果，而不是图片URL
-            logInfo.sendTaskLog("执行完成", userId, "知乎直答");
-            logInfo.sendChatData(page, "/search/([^/?#]+)", userId, "RETURN_ZH_CHATID", 1);
-            logInfo.sendResData(responseText, userId, "知乎直答", "RETURN_ZH_RES", shareUrl, shareImgUrl);
-            
-            // 保存数据库
-            userInfoRequest.setDraftContent(responseText);
-            userInfoRequest.setAiName("知乎直答");
-            userInfoRequest.setShareUrl(shareUrl);
-            userInfoRequest.setShareImgUrl(shareImgUrl);
-            RestUtils.post(url + "/saveDraftContent", userInfoRequest);
-            
-            return responseText;
-        } catch (Exception e) {
-            e.printStackTrace();
-            String errorMsg = "知乎直答处理出错: " + e.getMessage();
-            logInfo.sendTaskLog(errorMsg, userInfoRequest.getUserId(), "知乎直答");
-            logInfo.sendResData(errorMsg, userInfoRequest.getUserId(), "知乎直答", "RETURN_ZH_RES", "", "");
-    }
-        return "获取内容失败";
-}
-
-
 
 }

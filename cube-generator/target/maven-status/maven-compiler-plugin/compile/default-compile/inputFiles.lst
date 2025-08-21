@@ -1,0 +1,13 @@
+D:\U3W-AIProject\U3W-AI\cube-generator\src\main\java\com\cube\generator\controller\GenController.java
+D:\U3W-AIProject\U3W-AI\cube-generator\src\main\java\com\cube\generator\service\GenTableServiceImpl.java
+D:\U3W-AIProject\U3W-AI\cube-generator\src\main\java\com\cube\generator\domain\GenTable.java
+D:\U3W-AIProject\U3W-AI\cube-generator\src\main\java\com\cube\generator\mapper\GenTableColumnMapper.java
+D:\U3W-AIProject\U3W-AI\cube-generator\src\main\java\com\cube\generator\service\IGenTableService.java
+D:\U3W-AIProject\U3W-AI\cube-generator\src\main\java\com\cube\generator\util\VelocityUtils.java
+D:\U3W-AIProject\U3W-AI\cube-generator\src\main\java\com\cube\generator\util\GenUtils.java
+D:\U3W-AIProject\U3W-AI\cube-generator\src\main\java\com\cube\generator\domain\GenTableColumn.java
+D:\U3W-AIProject\U3W-AI\cube-generator\src\main\java\com\cube\generator\mapper\GenTableMapper.java
+D:\U3W-AIProject\U3W-AI\cube-generator\src\main\java\com\cube\generator\config\GenConfig.java
+D:\U3W-AIProject\U3W-AI\cube-generator\src\main\java\com\cube\generator\service\GenTableColumnServiceImpl.java
+D:\U3W-AIProject\U3W-AI\cube-generator\src\main\java\com\cube\generator\service\IGenTableColumnService.java
+D:\U3W-AIProject\U3W-AI\cube-generator\src\main\java\com\cube\generator\util\VelocityInitializer.java

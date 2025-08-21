@@ -1,0 +1,8 @@
+com\cube\point\util\ResultBody.class
+com\cube\point\util\RestCli.class
+com\cube\point\domain\Points.class
+com\cube\point\util\RedisCli.class
+com\cube\point\controller\PointsSystem.class
+com\cube\point\controller\web3Test.class
+com\cube\point\domain\EthConstant.class
+com\cube\point\mapper\PointsMapper.class

@@ -92,14 +92,7 @@ public class BrowserController {
     public String checkZhihuLogin(@Parameter(description = "用户唯一标识") @RequestParam("userId") String userId) {
         try (BrowserContext context = browserUtil.createPersistentBrowserContext(false, userId, "zhihu")) {
             Page page = context.newPage();
-
-            // 导航到知乎页面
             page.navigate("https://zhida.zhihu.com/");
-
-            // 等待页面加载完成
-            page.waitForLoadState(LoadState.NETWORKIDLE);
-            
-            // 额外等待页面渲染完成
             Thread.sleep(3000);
 
             // 检查是否存在登录/注册按钮

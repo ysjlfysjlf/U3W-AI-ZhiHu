@@ -512,16 +512,6 @@ export default {
         ybDsChatId: '',
         dbChatId: '',
         zhChatId: '',
-        isNewChat: true
-        userPrompt: "",
-        userId: "",
-        corpId: "",
-        taskId: "",
-        roles: "",
-        toneChatId: "",
-        ybDsChatId: "",
-        dbChatId: "",
-        zhChatId: "",
         isNewChat: true,
       },
       jsonRpcReqest: {
@@ -531,18 +521,6 @@ export default {
         params: {},
       },
       aiList: [
-        {     
-          name: '知乎直答',
-          avatar: require('../../../assets/ai/Zhihu.png'),
-          capabilities: [
-            { label: '深度思考', value: 'deep_thinking' }
-          ],
-          selectedCapabilities: ['deep_thinking'],
-          enabled: true,
-          status: 'idle',
-          progressLogs: [],
-          isExpanded: true
-        },
         {
           name: 'DeepSeek',
           avatar: require('../../../assets/logo/Deepseek.png'),
@@ -555,6 +533,18 @@ export default {
           status: "idle",
           progressLogs: [],
           isExpanded: true,
+        },
+        {     
+          name: '知乎直答',
+          avatar: require('../../../assets/ai/zhihu.png'),
+          capabilities: [
+            { label: '深度思考', value: 'deep_thinking' }
+          ],
+          selectedCapabilities: ['deep_thinking'],
+          enabled: true,
+          status: 'idle',
+          progressLogs: [],
+          isExpanded: true
         },
         {
           name: "豆包",
@@ -573,7 +563,7 @@ export default {
             { label: "深度思考", value: "deep_thinking" },
             { label: "联网搜索", value: "web_search" },
           ],
-          selectedCapabilities: [],
+          selectedCapabilities: ["deep_thinking", "web_search"],
           enabled: true,
           status: "idle",
           progressLogs: [],
@@ -698,12 +688,6 @@ export default {
       });
 
       this.enabledAIs.forEach(ai => {
-        if(ai.name === '知乎直答'){
-          this.userInfoReq.roles = this.userInfoReq.roles + 'zhihu,';
-          if(ai.selectedCapabilities.includes("deep_thinking")){
-            this.userInfoReq.roles = this.userInfoReq.roles + 'zhihu-deepseek-sdsk,';
-          }
-        }
         if(ai.name === 'DeepSeek' && ai.enabled){
           this.userInfoReq.roles = this.userInfoReq.roles + 'deepseek,';
           if (ai.selectedCapabilities.includes("deep_thinking")) {
@@ -711,6 +695,12 @@ export default {
           }
           if (ai.selectedCapabilities.includes("web_search")) {
             this.userInfoReq.roles = this.userInfoReq.roles + "ds-lwss,";
+          }
+        }
+        if(ai.name === '知乎直答'){
+          this.userInfoReq.roles = this.userInfoReq.roles + 'zhihu,';
+          if(ai.selectedCapabilities.includes("deep_thinking")){
+            this.userInfoReq.roles = this.userInfoReq.roles + 'zhihu-sdsk,';
           }
         }
         if (ai.name === "豆包") {
@@ -1212,8 +1202,20 @@ export default {
     loadHistoryItem(item) {
       try {
         const historyData = JSON.parse(item.data);
-        // 恢复AI选择配置
-        this.aiList = historyData.aiList || this.aiList;
+        
+        // 恢复AI选择配置，但重新设置知乎直答的图标路径
+        if (historyData.aiList) {
+          const updatedAiList = historyData.aiList.map(ai => {
+            if (ai.name === '知乎直答') {
+              return { ...ai, avatar: require('../../../assets/ai/zhihu.png') };
+            }
+            return ai;
+          });
+          this.aiList = updatedAiList;
+        } else {
+          this.aiList = this.aiList;
+        }
+        
         // 恢复提示词输入
         this.promptInput = historyData.promptInput || "";
         // 恢复任务流程
@@ -1310,23 +1312,11 @@ export default {
         ybDsChatId: '',
         dbChatId: '',
         zhChatId: '',
-        maxChatId: "",
+        maxChatId: '',
         isNewChat: true
       };
       // 重置AI列表为初始状态
       this.aiList = [
-        {
-          name: '知乎直答',
-          avatar: require('../../../assets/ai/Zhihu.png'),
-          capabilities: [
-            { label: '深度思考', value: 'deep_thinking' }
-          ],
-          selectedCapabilities: ['deep_thinking'],
-          enabled: true,
-          status: 'idle',
-          progressLogs: [],
-          isExpanded: true
-        },
         {
           name: 'DeepSeek',
           avatar: require('../../../assets/logo/Deepseek.png'),
@@ -1339,6 +1329,18 @@ export default {
           status: "idle",
           progressLogs: [],
           isExpanded: true,
+        },
+        {
+          name: '知乎直答',
+          avatar: require('../../../assets/ai/zhihu.png'),
+          capabilities: [
+            { label: '深度思考', value: 'deep_thinking' }
+          ],
+          selectedCapabilities: ['deep_thinking'],
+          enabled: true,
+          status: 'idle',
+          progressLogs: [],
+          isExpanded: true
         },
         {
           name: "MiniMax Chat",

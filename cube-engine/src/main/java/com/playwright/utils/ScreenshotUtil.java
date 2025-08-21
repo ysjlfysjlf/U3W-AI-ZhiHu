@@ -33,6 +33,20 @@ public class ScreenshotUtil {
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
         try {
+            // 检查页面状态
+            if (page == null || page.isClosed()) {
+                System.out.println("页面已关闭或为空，跳过截图: " + imageName);
+                return "";
+            }
+            
+            // 检查浏览器上下文状态
+            try {
+                page.context().browser();
+            } catch (Exception e) {
+                System.out.println("浏览器上下文已关闭，跳过截图: " + imageName);
+                return "";
+            }
+
             // 截取全屏截图
             page.screenshot(new Page.ScreenshotOptions()
                     .setPath(Paths.get(imageName))
@@ -48,7 +62,19 @@ public class ScreenshotUtil {
             String url = jsonObject.get("url")+"";
             Files.delete(Paths.get(imageName));
             return url;
+        } catch (com.microsoft.playwright.PlaywrightException e) {
+            // 处理Playwright特定异常
+            if (e.getMessage().contains("Object doesn't exist") || 
+                e.getMessage().contains("worker@") ||
+                e.getMessage().contains("Target closed") ||
+                e.getMessage().contains("Page closed")) {
+                System.out.println("页面或浏览器已关闭，跳过截图: " + imageName + " - " + e.getMessage());
+                return "";
+            }
+            System.out.println("Playwright截图异常: " + e.getMessage());
+            e.printStackTrace();
         } catch (Exception e) {
+            System.out.println("截图异常: " + e.getMessage());
             e.printStackTrace();
         }
 
@@ -66,6 +92,27 @@ public class ScreenshotUtil {
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
         try {
+            // 检查定位器状态
+            if (locator == null) {
+                System.out.println("定位器为空，跳过元素截图: " + imageName);
+                return "";
+            }
+            
+            // 检查页面状态
+            try {
+                Page page = locator.page();
+                if (page == null || page.isClosed()) {
+                    System.out.println("页面已关闭或为空，跳过元素截图: " + imageName);
+                    return "";
+                }
+                
+                // 检查浏览器上下文状态
+                page.context().browser();
+            } catch (Exception e) {
+                System.out.println("浏览器上下文已关闭，跳过元素截图: " + imageName);
+                return "";
+            }
+
             // 截取元素截图
             locator.screenshot(new com.microsoft.playwright.Locator.ScreenshotOptions()
                     .setPath(Paths.get(imageName))
@@ -80,7 +127,19 @@ public class ScreenshotUtil {
             String url = jsonObject.get("url")+"";
             Files.delete(Paths.get(imageName));
             return url;
+        } catch (com.microsoft.playwright.PlaywrightException e) {
+            // 处理Playwright特定异常
+            if (e.getMessage().contains("Object doesn't exist") || 
+                e.getMessage().contains("worker@") ||
+                e.getMessage().contains("Target closed") ||
+                e.getMessage().contains("Page closed")) {
+                System.out.println("页面或浏览器已关闭，跳过元素截图: " + imageName + " - " + e.getMessage());
+                return "";
+            }
+            System.out.println("Playwright元素截图异常: " + e.getMessage());
+            e.printStackTrace();
         } catch (Exception e) {
+            System.out.println("元素截图异常: " + e.getMessage());
             e.printStackTrace();
         }
 

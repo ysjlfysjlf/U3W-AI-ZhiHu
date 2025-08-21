@@ -1,0 +1,13 @@
+com\cube\generator\controller\GenController.class
+com\cube\generator\mapper\GenTableColumnMapper.class
+com\cube\generator\mapper\GenTableMapper.class
+com\cube\generator\service\GenTableColumnServiceImpl.class
+com\cube\generator\util\VelocityUtils.class
+com\cube\generator\domain\GenTableColumn.class
+com\cube\generator\util\GenUtils.class
+com\cube\generator\service\GenTableServiceImpl.class
+com\cube\generator\service\IGenTableService.class
+com\cube\generator\util\VelocityInitializer.class
+com\cube\generator\config\GenConfig.class
+com\cube\generator\domain\GenTable.class
+com\cube\generator\service\IGenTableColumnService.class
