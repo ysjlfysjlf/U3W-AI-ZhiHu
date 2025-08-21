@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="dc685bff-9d1e-4ec6-bb6d-5835a13df497" name="更改" comment="" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="KubernetesApiPersistence">{}</component>
+  <component name="KubernetesApiProvider">{
+  &quot;isMigrated&quot;: true
+}</component>
+  <component name="MavenImportPreferences">
+    <option name="generalSettings">
+      <MavenGeneralSettings>
+        <option name="customMavenHome" value="D:\idea\idea2025\IntelliJ IDEA 2025.1\plugins\maven\lib\maven3\bin" />
+        <option name="localRepository" value="C:\Users\Lenovo\.m2\repository" />
+        <option name="mavenHomeTypeForPersistence" value="CUSTOM" />
+        <option name="userSettingsFile" value="D:\idea\idea2025\IntelliJ IDEA 2025.1\plugins\maven\lib\maven3\conf\settings.xml" />
+      </MavenGeneralSettings>
+    </option>
+  </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7
+}</component>
+  <component name="ProjectId" id="2zs0m3xgJRKOnUmRwG0GKhc69nn" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
+    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
+    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
+    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;Spring Boot.App.executor&quot;: &quot;Run&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/U3W-AIProject/U3W-AI/cube-engine&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;模块&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;MavenSettings&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  },
+  &quot;keyToStringList&quot;: {
+    &quot;DatabaseDriversLRU&quot;: [
+      &quot;mysql&quot;
+    ]
+  }
+}</component>
+  <component name="RunManager">
+    <configuration name="App" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="U3W" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="com.playwright.App" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-9823dce3aa75-fbdcb00ec9e3-intellij.indexing.shared.core-IU-251.23774.435" />
+        <option value="bundled-js-predefined-d6986cc7102b-f27c65a3e318-JavaScript-IU-251.23774.435" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="默认任务">
+      <changelist id="dc685bff-9d1e-4ec6-bb6d-5835a13df497" name="更改" comment="" />
+      <created>1752504628512</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1752504628512</updated>
+      <workItem from="1752504629747" duration="1584000" />
+      <workItem from="1752561801267" duration="37000" />
+      <workItem from="1752562942888" duration="304000" />
+      <workItem from="1752563258760" duration="1607000" />
+      <workItem from="1752573405682" duration="704000" />
+      <workItem from="1752576369970" duration="9590000" />
+      <workItem from="1752625177091" duration="5490000" />
+      <workItem from="1752647884111" duration="17260000" />
+      <workItem from="1752710288006" duration="14477000" />
+      <workItem from="1752732881940" duration="8200000" />
+      <workItem from="1752742099269" duration="16508000" />
+      <workItem from="1752800268852" duration="13793000" />
+      <workItem from="1752833888870" duration="650000" />
+      <workItem from="1752889054004" duration="9898000" />
+      <workItem from="1752907943947" duration="15995000" />
+      <workItem from="1752933246337" duration="4404000" />
+      <workItem from="1752939305168" duration="330000" />
+      <workItem from="1752939749464" duration="927000" />
+      <workItem from="1752940700553" duration="860000" />
+      <workItem from="1752970047003" duration="350000" />
+      <workItem from="1752970460126" duration="216000" />
+      <workItem from="1752970694393" duration="6968000" />
+      <workItem from="1752993619337" duration="12980000" />
+      <workItem from="1753017178304" duration="3572000" />
+      <workItem from="1753023624113" duration="3339000" />
+      <workItem from="1753026985303" duration="357000" />
+      <workItem from="1753058015222" duration="15271000" />
+      <workItem from="1753080482302" duration="18780000" />
+      <workItem from="1753101802984" duration="122000" />
+      <workItem from="1753101940818" duration="13058000" />
+      <workItem from="1753140481954" duration="20268000" />
+      <workItem from="1753173531709" duration="6310000" />
+      <workItem from="1753184694262" duration="15363000" />
+      <workItem from="1753232597881" duration="21277000" />
+      <workItem from="1753324336992" duration="3168000" />
+      <workItem from="1753365618229" duration="2013000" />
+      <workItem from="1753407141636" duration="3202000" />
+      <workItem from="1753600107594" duration="8627000" />
+      <workItem from="1753662371083" duration="13000" />
+      <workItem from="1755752274659" duration="4660000" />
+      <workItem from="1755760049417" duration="11997000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>
