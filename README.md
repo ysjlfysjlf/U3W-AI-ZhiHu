@@ -7,4 +7,8 @@ AI主机核心服务端、控制台后端、控制台前端、控制台微信小
 首页统一管理多AI登录状态，检查用户登录状态，显示用户名。
 <img width="1535" height="484" alt="image" src="https://github.com/user-attachments/assets/034a7be0-a79b-4dd0-8c7d-fe68fb6c8c08" />
 主机页面有AI选择配置、提示词输入、任务流程、执行过程截屏、执行结果、查看原链接等功能。</br>
-![image](https://github.com/ysjlfysjlf/U3W-AI-ZhiHu/blob/82431dc9e0689d8c41e4a426f7f3d6a3b524b691/host.gif)
+
+
+https://github.com/user-attachments/assets/67caa39f-e849-43d0-b596-a5347e643859
+
+
