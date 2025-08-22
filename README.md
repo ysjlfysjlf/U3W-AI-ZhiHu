@@ -2,6 +2,14 @@
 基于Java17+SpringBoot+RuoYi+Playwright+Redis+WebSocket+Nginx+Vue+微信小程序的多 AI 集成与自动化执行项目。
 <h3><b>功能模块：</b></h3>
 AI主机核心服务端、控制台后端、控制台前端、控制台微信小程序小程序端
+<h3><b>环境部署要求：</b></h3>
+JDK17、Maven3.9+、MySQL5.7+,Redis6.0+，Node.js 16.x，Git。
+<img width="865" height="390" alt="image" src="https://github.com/user-attachments/assets/492db0a2-2e7e-4885-b7e7-3024e82d72f5" />
+<img width="792" height="95" alt="image" src="https://github.com/user-attachments/assets/b70d8b70-160d-4bba-993f-5e57aec11d2e" />
+</br>
+修改Redis端口为26379。
+<img width="865" height="101" alt="image" src="https://github.com/user-attachments/assets/535d33ad-b082-4f56-88c1-9fe5063f5830" />
+
 <h3><b>效果展示：</b></h3>
 <h3><b>Web端：</b></h3>
 首页统一管理多AI登录状态，检查用户登录状态，显示用户名。
